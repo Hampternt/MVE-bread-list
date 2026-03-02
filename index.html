@@ -1,820 +1,873 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bread Route Checklist</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --bg: #1a1a18;
-    --surface: #252520;
-    --border: #3a3a32;
-    --accent: #e8c840;
-    --accent-dim: #b09a28;
-    --text: #f0ede0;
-    --muted: #888878;
-    --done-bg: #1e1e1a;
-    --done-text: #555545;
-    --check: #5abf6a;
-  }
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bread Route Checklist</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700;900&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #1a1a18;
+      --surface: #252520;
+      --border: #3a3a32;
+      --accent: #e8c840;
+      --accent-dim: #b09a28;
+      --text: #f0ede0;
+      --muted: #888878;
+      --done-bg: #1e1e1a;
+      --done-text: #555545;
+      --check: #5abf6a;
+    }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Barlow Condensed', sans-serif;
-    min-height: 100vh;
-    padding: 0;
-  }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Barlow Condensed', sans-serif;
+      min-height: 100vh;
+      padding: 0;
+    }
 
-  header {
-    background: var(--accent);
-    color: #1a1a18;
-    padding: 18px 20px 14px;
-    display: flex;
-    align-items: flex-end;
-    gap: 12px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    border-bottom: 3px solid #c8a820;
-  }
+    header {
+      background: var(--accent);
+      color: #1a1a18;
+      padding: 18px 20px 14px;
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 3px solid #c8a820;
+    }
 
-  .logo-icon {
-    font-size: 32px;
-    line-height: 1;
-  }
+    .logo-icon {
+      font-size: 32px;
+      line-height: 1;
+    }
 
-  .header-text h1 {
-    font-size: 28px;
-    font-weight: 900;
-    letter-spacing: 0.04em;
-    line-height: 1;
-    text-transform: uppercase;
-  }
+    .header-text h1 {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      line-height: 1;
+      text-transform: uppercase;
+    }
 
-  .header-text p {
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    opacity: 0.65;
-    text-transform: uppercase;
-    font-family: 'DM Mono', monospace;
-  }
+    .header-text p {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      opacity: 0.65;
+      text-transform: uppercase;
+      font-family: 'DM Mono', monospace;
+    }
 
-  .refresh-btn {
-    margin-left: auto;
-    background: rgba(0,0,0,0.15);
-    border: 2px solid rgba(0,0,0,0.2);
-    color: #1a1a18;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 6px 14px;
-    border-radius: 3px;
-    cursor: pointer;
-  }
-  .refresh-btn:hover { background: rgba(0,0,0,0.25); }
+    .refresh-btn {
+      margin-left: auto;
+      background: rgba(0, 0, 0, 0.15);
+      border: 2px solid rgba(0, 0, 0, 0.2);
+      color: #1a1a18;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 6px 14px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+
+    .refresh-btn:hover {
+      background: rgba(0, 0, 0, 0.25);
+    }
+
     background: var(--surface);
     border-bottom: 2px solid var(--border);
     padding: 16px 20px;
     display: flex;
     align-items: center;
     gap: 14px;
-  }
+    }
 
-  .route-selector label {
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: var(--muted);
-    font-family: 'DM Mono', monospace;
-    white-space: nowrap;
-  }
+    .route-selector label {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      white-space: nowrap;
+    }
 
-  select {
-    flex: 1;
-    background: var(--bg);
-    color: var(--text);
-    border: 2px solid var(--border);
-    border-radius: 4px;
-    padding: 10px 14px;
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 18px;
-    font-weight: 600;
-    letter-spacing: 0.03em;
-    cursor: pointer;
-    appearance: none;
-    -webkit-appearance: none;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888878' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 14px center;
-    transition: border-color 0.15s;
-  }
+    select {
+      flex: 1;
+      background: var(--bg);
+      color: var(--text);
+      border: 2px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 14px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888878' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      transition: border-color 0.15s;
+    }
 
-  select:focus {
-    outline: none;
-    border-color: var(--accent);
-  }
+    select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
 
-  .stats-bar {
-    padding: 10px 20px;
-    display: flex;
-    gap: 20px;
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-  }
+    .stats-bar {
+      padding: 10px 20px;
+      display: flex;
+      gap: 20px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+    }
 
-  .stat {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--muted);
-  }
+    .stat {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+    }
 
-  .stat strong {
-    color: var(--text);
-    font-size: 14px;
-  }
+    .stat strong {
+      color: var(--text);
+      font-size: 14px;
+    }
 
-  .stat-divider { color: var(--border); }
+    .stat-divider {
+      color: var(--border);
+    }
 
-  .stat.completed strong { color: var(--check); }
+    .stat.completed strong {
+      color: var(--check);
+    }
 
-  .content {
-    padding: 16px 20px;
-    max-width: 680px;
-    margin: 0 auto;
-  }
+    .content {
+      padding: 16px 20px;
+      max-width: 680px;
+      margin: 0 auto;
+    }
 
-  .placeholder {
-    text-align: center;
-    padding: 60px 20px;
-    color: var(--muted);
-  }
+    .placeholder {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
 
-  .placeholder .big { font-size: 64px; margin-bottom: 12px; }
-  .placeholder p { font-size: 16px; letter-spacing: 0.05em; text-transform: uppercase; }
+    .placeholder .big {
+      font-size: 64px;
+      margin-bottom: 12px;
+    }
 
-  .order-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-left: 4px solid var(--accent);
-    border-radius: 4px;
-    margin-bottom: 10px;
-    transition: all 0.2s;
-    overflow: hidden;
-  }
+    .placeholder p {
+      font-size: 16px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
 
-  .order-card.checked {
-    border-left-color: var(--check);
-    background: var(--done-bg);
-    opacity: 0.65;
-  }
+    .order-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: 4px;
+      margin-bottom: 10px;
+      transition: all 0.2s;
+      overflow: hidden;
+    }
 
-  .order-card label {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    cursor: pointer;
-    padding: 0;
-  }
+    .order-card.checked {
+      border-left-color: var(--check);
+      background: var(--done-bg);
+      opacity: 0.65;
+    }
 
-  .checkbox-area {
-    width: 56px;
-    min-height: 72px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    border-right: 1px solid var(--border);
-  }
+    .order-card label {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      cursor: pointer;
+      padding: 0;
+    }
 
-  .order-card.checked .checkbox-area {
-    border-right-color: #333;
-  }
+    .checkbox-area {
+      width: 56px;
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+    }
 
-  input[type="checkbox"] {
-    appearance: none;
-    -webkit-appearance: none;
-    width: 24px;
-    height: 24px;
-    border: 2.5px solid var(--border);
-    border-radius: 3px;
-    cursor: pointer;
-    position: relative;
-    transition: all 0.15s;
-    flex-shrink: 0;
-  }
+    .order-card.checked .checkbox-area {
+      border-right-color: #333;
+    }
 
-  input[type="checkbox"]:checked {
-    background: var(--check);
-    border-color: var(--check);
-  }
+    input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 24px;
+      height: 24px;
+      border: 2.5px solid var(--border);
+      border-radius: 3px;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
 
-  input[type="checkbox"]:checked::after {
-    content: '';
-    position: absolute;
-    left: 5px;
-    top: 2px;
-    width: 9px;
-    height: 13px;
-    border: 2.5px solid white;
-    border-top: none;
-    border-left: none;
-    transform: rotate(40deg);
-  }
+    input[type="checkbox"]:checked {
+      background: var(--check);
+      border-color: var(--check);
+    }
 
-  .order-info {
-    flex: 1;
-    padding: 12px 14px;
-    min-width: 0;
-  }
+    input[type="checkbox"]:checked::after {
+      content: '';
+      position: absolute;
+      left: 5px;
+      top: 2px;
+      width: 9px;
+      height: 13px;
+      border: 2.5px solid white;
+      border-top: none;
+      border-left: none;
+      transform: rotate(40deg);
+    }
 
-  .order-top {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-    margin-bottom: 4px;
-    flex-wrap: wrap;
-  }
+    .order-info {
+      flex: 1;
+      padding: 12px 14px;
+      min-width: 0;
+    }
 
-  .ware-name {
-    font-size: 20px;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    line-height: 1.1;
-  }
+    .order-top {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
 
-  .order-card.checked .ware-name {
-    color: var(--done-text);
-    text-decoration: line-through;
-  }
+    .ware-name {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      line-height: 1.1;
+    }
 
-  .qty-badge {
-    background: var(--accent);
-    color: #1a1a18;
-    font-size: 13px;
-    font-weight: 700;
-    padding: 2px 8px;
-    border-radius: 2px;
-    font-family: 'DM Mono', monospace;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-  }
+    .order-card.checked .ware-name {
+      color: var(--done-text);
+      text-decoration: line-through;
+    }
 
-  .order-card.checked .qty-badge {
-    background: #333;
-    color: var(--done-text);
-  }
+    .qty-badge {
+      background: var(--accent);
+      color: #1a1a18;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 2px;
+      font-family: 'DM Mono', monospace;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
 
-  .order-meta {
-    display: flex;
-    gap: 14px;
-    flex-wrap: wrap;
-  }
+    .order-card.checked .qty-badge {
+      background: #333;
+      color: var(--done-text);
+    }
 
-  .meta-item {
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: var(--muted);
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
+    .order-meta {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
 
-  .order-card.checked .meta-item { color: #444; }
+    .meta-item {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
 
-  .meta-label { text-transform: uppercase; letter-spacing: 0.06em; }
-  .meta-value { color: var(--text); }
-  .order-card.checked .meta-value { color: #555; }
+    .order-card.checked .meta-item {
+      color: #444;
+    }
 
-  .section-label {
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--muted);
-    margin: 20px 0 8px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid var(--border);
-  }
+    .meta-label {
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
 
-  .reset-btn {
-    display: block;
-    width: 100%;
-    margin-top: 24px;
-    margin-bottom: 32px;
-    padding: 14px;
-    background: transparent;
-    border: 2px solid var(--border);
-    color: var(--muted);
-    font-family: 'Barlow Condensed', sans-serif;
-    font-size: 16px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: all 0.15s;
-  }
+    .meta-value {
+      color: var(--text);
+    }
 
-  .reset-btn:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
+    .order-card.checked .meta-value {
+      color: #555;
+    }
 
-  .all-done {
-    text-align: center;
-    padding: 30px 20px;
-    margin-top: 10px;
-  }
+    .section-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 20px 0 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
 
-  .all-done .icon { font-size: 48px; margin-bottom: 8px; }
-  .all-done p {
-    font-size: 22px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--check);
-  }
+    .reset-btn {
+      display: block;
+      width: 100%;
+      margin-top: 24px;
+      margin-bottom: 32px;
+      padding: 14px;
+      background: transparent;
+      border: 2px solid var(--border);
+      color: var(--muted);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
 
-  .summary-box {
-    background: var(--surface);
-    border-bottom: 3px solid var(--accent);
-    padding: 0;
-    overflow: hidden;
-  }
+    .reset-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
 
-  .summary-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 20px;
-    cursor: pointer;
-    user-select: none;
-    background: #2a2a20;
-  }
+    .all-done {
+      text-align: center;
+      padding: 30px 20px;
+      margin-top: 10px;
+    }
 
-  .summary-toggle:hover { background: #303028; }
+    .all-done .icon {
+      font-size: 48px;
+      margin-bottom: 8px;
+    }
 
-  .summary-toggle-left {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
+    .all-done p {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--check);
+    }
 
-  .summary-title {
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    font-family: 'DM Mono', monospace;
-    color: var(--accent);
-  }
+    .summary-box {
+      background: var(--surface);
+      border-bottom: 3px solid var(--accent);
+      padding: 0;
+      overflow: hidden;
+    }
 
-  .summary-subtitle {
-    font-family: 'DM Mono', monospace;
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: 0.06em;
-  }
+    .summary-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      cursor: pointer;
+      user-select: none;
+      background: #2a2a20;
+    }
 
-  .summary-chevron {
-    color: var(--muted);
-    font-size: 14px;
-    transition: transform 0.2s;
-  }
+    .summary-toggle:hover {
+      background: #303028;
+    }
 
-  .summary-chevron.open { transform: rotate(180deg); }
+    .summary-toggle-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
 
-  .summary-items {
-    padding: 8px 12px 12px;
-    display: none;
-  }
+    .summary-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-family: 'DM Mono', monospace;
+      color: var(--accent);
+    }
 
-  .summary-items.open { display: block; }
+    .summary-subtitle {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
 
-  .summary-row {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    border-bottom: 1px solid var(--border);
-  }
+    .summary-chevron {
+      color: var(--muted);
+      font-size: 14px;
+      transition: transform 0.2s;
+    }
 
-  .summary-row:last-child { border-bottom: none; }
+    .summary-chevron.open {
+      transform: rotate(180deg);
+    }
 
-  .summary-checkbox-area {
-    width: 44px;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
+    .summary-items {
+      padding: 8px 12px 12px;
+      display: none;
+    }
 
-  .summary-row label {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    cursor: pointer;
-    padding: 10px 10px 10px 0;
-    gap: 10px;
-  }
+    .summary-items.open {
+      display: block;
+    }
 
-  .summary-ware {
-    font-size: 16px;
-    font-weight: 600;
-    letter-spacing: 0.02em;
-    transition: color 0.15s;
-  }
+    .summary-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+    }
 
-  .summary-row.s-checked .summary-ware {
-    color: var(--done-text);
-    text-decoration: line-through;
-  }
+    .summary-row:last-child {
+      border-bottom: none;
+    }
 
-  .summary-qty {
-    font-family: 'DM Mono', monospace;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--accent);
-    background: #1a1a12;
-    padding: 3px 10px;
-    border-radius: 2px;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
+    .summary-checkbox-area {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
 
-  .summary-row.s-checked .summary-qty {
-    color: var(--done-text);
-    background: #222;
-  }
+    .summary-row label {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      padding: 10px 10px 10px 0;
+      gap: 10px;
+    }
+
+    .summary-ware {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: color 0.15s;
+    }
+
+    .summary-row.s-checked .summary-ware {
+      color: var(--done-text);
+      text-decoration: line-through;
+    }
+
+    .summary-qty {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--accent);
+      background: #1a1a12;
+      padding: 3px 10px;
+      border-radius: 2px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .summary-row.s-checked .summary-qty {
+      color: var(--done-text);
+      background: #222;
+    }
+
     margin-bottom: 18px;
     border: 1px solid var(--border);
     border-radius: 5px;
     overflow: hidden;
-  }
+    }
 
-  .customer-group.cg-done {
-    border-color: #2a2a25;
-    opacity: 0.7;
-  }
+    .customer-group.cg-done {
+      border-color: #2a2a25;
+      opacity: 0.7;
+    }
 
-  .customer-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: #2e2e28;
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
-  }
+    .customer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #2e2e28;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
 
-  .cg-done .customer-header {
-    background: #222220;
-    border-bottom-color: #2a2a25;
-  }
+    .cg-done .customer-header {
+      background: #222220;
+      border-bottom-color: #2a2a25;
+    }
 
-  .customer-name {
-    font-size: 16px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--accent);
-  }
+    .customer-name {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
 
-  .cg-done .customer-name {
-    color: #555545;
-  }
+    .cg-done .customer-name {
+      color: #555545;
+    }
 
-  .customer-tally {
-    font-family: 'DM Mono', monospace;
-    font-size: 12px;
-    color: var(--muted);
-    background: var(--bg);
-    padding: 2px 8px;
-    border-radius: 2px;
-  }
+    .customer-tally {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      background: var(--bg);
+      padding: 2px 8px;
+      border-radius: 2px;
+    }
 
-  .customer-tally.tally-done {
-    color: var(--check);
-    background: #1a2a1a;
-  }
+    .customer-tally.tally-done {
+      color: var(--check);
+      background: #1a2a1a;
+    }
 
-  .customer-orders .order-card {
-    border-radius: 0;
-    border-left-width: 4px;
-    border-top: none;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 0;
-  }
+    .customer-orders .order-card {
+      border-radius: 0;
+      border-left-width: 4px;
+      border-top: none;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0;
+    }
 
-  .customer-orders .order-card:last-child {
-    border-bottom: none;
-  }
+    .customer-orders .order-card:last-child {
+      border-bottom: none;
+    }
 
-  .cg-done .customer-orders .order-card {
-    border-bottom-color: #2a2a25;
-  }
+    .cg-done .customer-orders .order-card {
+      border-bottom-color: #2a2a25;
+    }
 
-  @media (max-width: 400px) {
-    .ware-name { font-size: 17px; }
-    .header-text h1 { font-size: 22px; }
-  }
-</style>
-</head>
-<body>
+    @media (max-width: 400px) {
+      .ware-name {
+        font-size: 17px;
+      }
 
-<header>
-  <div class="logo-icon">🍞</div>
-  <div class="header-text">
-    <h1>Bread Run</h1>
-    <p>Route Checklist</p>
-  </div>
-  <button class="refresh-btn" onclick="fetchSheetData()">↻ Refresh</button>
-</header>
-
-<div class="route-selector">
-  <label>Route</label>
-  <select id="routeSelect" onchange="loadRoute()">
-    <option value="">— Select your route —</option>
-  </select>
-</div>
-
-<div class="stats-bar" id="statsBar" style="display:none">
-  <div class="stat"><strong id="statTotal">0</strong> orders</div>
-  <div class="stat-divider">|</div>
-  <div class="stat completed"><strong id="statDone">0</strong> done</div>
-  <div class="stat-divider">|</div>
-  <div class="stat"><strong id="statQty">0</strong> units total</div>
-</div>
-
-<div class="summary-box" id="summaryBox" style="display:none">
-  <div class="summary-toggle" onclick="toggleSummary()">
-    <div class="summary-toggle-left">
-      <span class="summary-title">📦 Sorting Stage</span>
-      <span class="summary-subtitle" id="summarySubtitle"></span>
-    </div>
-    <span class="summary-chevron" id="summaryChevron">▼</span>
-  </div>
-  <div class="summary-items" id="summaryItems"></div>
-</div>
-
-<div class="content" id="content">
-  <div class="placeholder">
-    <div class="big">🚚</div>
-    <p>Select your route to begin</p>
-  </div>
-</div>
-
-<script>
-// ─── CONFIGURATION ───────────────────────────────────────────────────────────
-// Paste your Google Sheets CSV URL here.
-// How to get it:
-//   1. Open your Google Sheet
-//   2. File → Share → Publish to web
-//   3. Choose "Comma-separated values (.csv)" and the correct sheet tab
-//   4. Click Publish and copy the link — paste it below
-const SHEET_CSV_URL = "YOUR_GOOGLE_SHEETS_CSV_URL_HERE";
-
-// Expected column order (0-indexed). Change these numbers if your columns
-// are in a different order in the sheet.
-const COLS = {
-  orderNum : 0,  // Order number
-  ware     : 1,  // Ware
-  wareType : 2,  // Ware type
-  qty      : 3,  // Qty
-  supplier : 4,  // Supplier
-  route    : 5,  // Route
-  driver   : 6,  // Driver
-  customer : 7,  // Customer
-};
-
-// ─── STATE ──────────────────────────────────────────────────────────────────
-let checked = {};
-let summaryChecked = {};
-let summaryOpen = true;
-let breadOnly = [];
-
-// ─── CSV PARSER ──────────────────────────────────────────────────────────────
-// Handles quoted fields, commas inside quotes, and Windows line endings
-function parseCSV(text) {
-  const rows = [];
-  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-  for (const line of lines) {
-    if (!line.trim()) continue;
-    const fields = [];
-    let cur = '', inQuotes = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') {
-        // Two quotes in a row inside quotes = escaped quote
-        if (inQuotes && line[i+1] === '"') { cur += '"'; i++; }
-        else inQuotes = !inQuotes;
-      } else if (ch === ',' && !inQuotes) {
-        fields.push(cur.trim());
-        cur = '';
-      } else {
-        cur += ch;
+      .header-text h1 {
+        font-size: 22px;
       }
     }
-    fields.push(cur.trim());
-    rows.push(fields);
-  }
-  return rows;
-}
+  </style>
+</head>
 
-function rowToObject(fields) {
-  return {
-    orderNum : fields[COLS.orderNum] || '',
-    ware     : fields[COLS.ware]     || '',
-    wareType : fields[COLS.wareType] || '',
-    qty      : parseInt(fields[COLS.qty]) || 0,
-    supplier : fields[COLS.supplier] || '',
-    route    : fields[COLS.route]    || '',
-    driver   : fields[COLS.driver]   || '',
-    customer : fields[COLS.customer] || '',
-  };
-}
+<body>
 
-// ─── INIT ────────────────────────────────────────────────────────────────────
-const sel = document.getElementById('routeSelect');
+  <header>
+    <div class="logo-icon">🍞</div>
+    <div class="header-text">
+      <h1>Bread Run</h1>
+      <p>Route Checklist</p>
+    </div>
+    <button class="refresh-btn" onclick="fetchSheetData()">↻ Refresh</button>
+  </header>
 
-function showLoadingState() {
-  document.getElementById('content').innerHTML = `
+  <div class="route-selector">
+    <label>Route</label>
+    <select id="routeSelect" onchange="loadRoute()">
+      <option value="">— Select your route —</option>
+    </select>
+  </div>
+
+  <div class="stats-bar" id="statsBar" style="display:none">
+    <div class="stat"><strong id="statTotal">0</strong> orders</div>
+    <div class="stat-divider">|</div>
+    <div class="stat completed"><strong id="statDone">0</strong> done</div>
+    <div class="stat-divider">|</div>
+    <div class="stat"><strong id="statQty">0</strong> units total</div>
+  </div>
+
+  <div class="summary-box" id="summaryBox" style="display:none">
+    <div class="summary-toggle" onclick="toggleSummary()">
+      <div class="summary-toggle-left">
+        <span class="summary-title">📦 Sorting Stage</span>
+        <span class="summary-subtitle" id="summarySubtitle"></span>
+      </div>
+      <span class="summary-chevron" id="summaryChevron">▼</span>
+    </div>
+    <div class="summary-items" id="summaryItems"></div>
+  </div>
+
+  <div class="content" id="content">
+    <div class="placeholder">
+      <div class="big">🚚</div>
+      <p>Select your route to begin</p>
+    </div>
+  </div>
+
+  <script>
+    // ─── CONFIGURATION ───────────────────────────────────────────────────────────
+    // Paste your Google Sheets CSV URL here.
+    // How to get it:
+    //   1. Open your Google Sheet
+    //   2. File → Share → Publish to web
+    //   3. Choose "Comma-separated values (.csv)" and the correct sheet tab
+    //   4. Click Publish and copy the link — paste it below
+    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQtpZq0YITZ1P_7kRssEnU8JW8c-wXsq7odSN2GjcGmBsJAIrmtC0QWXjjv6tSafF_u-BJ90ZLvR5IK/pub?output=csv";
+
+    // Expected column order (0-indexed). Change these numbers if your columns
+    // are in a different order in the sheet.
+    const COLS = {
+      orderNum: 0,  // Order number
+      ware: 1,  // Ware
+      wareType: 2,  // Ware type
+      qty: 3,  // Qty
+      supplier: 4,  // Supplier
+      route: 5,  // Route
+      driver: 6,  // Driver
+      customer: 7,  // Customer
+    };
+
+    // ─── STATE ──────────────────────────────────────────────────────────────────
+    let checked = {};
+    let summaryChecked = {};
+    let summaryOpen = true;
+    let breadOnly = [];
+
+    // ─── CSV PARSER ──────────────────────────────────────────────────────────────
+    // Handles quoted fields, commas inside quotes, and Windows line endings
+    function parseCSV(text) {
+      const rows = [];
+      const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const fields = [];
+        let cur = '', inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') {
+            // Two quotes in a row inside quotes = escaped quote
+            if (inQuotes && line[i + 1] === '"') {cur += '"'; i++;}
+            else inQuotes = !inQuotes;
+          } else if (ch === ',' && !inQuotes) {
+            fields.push(cur.trim());
+            cur = '';
+          } else {
+            cur += ch;
+          }
+        }
+        fields.push(cur.trim());
+        rows.push(fields);
+      }
+      return rows;
+    }
+
+    function rowToObject(fields) {
+      return {
+        orderNum: fields[COLS.orderNum] || '',
+        ware: fields[COLS.ware] || '',
+        wareType: fields[COLS.wareType] || '',
+        qty: parseInt(fields[COLS.qty]) || 0,
+        supplier: fields[COLS.supplier] || '',
+        route: fields[COLS.route] || '',
+        driver: fields[COLS.driver] || '',
+        customer: fields[COLS.customer] || '',
+      };
+    }
+
+    // ─── INIT ────────────────────────────────────────────────────────────────────
+    const sel = document.getElementById('routeSelect');
+
+    function showLoadingState() {
+      document.getElementById('content').innerHTML = `
     <div class="placeholder">
       <div class="big">⏳</div>
       <p>Loading sheet data…</p>
     </div>`;
-}
+    }
 
-function showErrorState(msg) {
-  document.getElementById('content').innerHTML = `
+    function showErrorState(msg) {
+      document.getElementById('content').innerHTML = `
     <div class="placeholder">
       <div class="big">⚠️</div>
       <p>${msg}</p>
     </div>`;
-}
-
-function populateRouteDropdown() {
-  // Clear existing options except the placeholder
-  while (sel.options.length > 1) sel.remove(1);
-  const routes = [...new Set(breadOnly.map(r => r.route))].sort();
-  routes.forEach(r => {
-    const opt = document.createElement('option');
-    opt.value = r;
-    const drivers = [...new Set(breadOnly.filter(x => x.route === r).map(x => x.driver))];
-    opt.textContent = `${r}  —  ${drivers.join(', ')}`;
-    sel.appendChild(opt);
-  });
-}
-
-async function fetchSheetData() {
-  if (!SHEET_CSV_URL || SHEET_CSV_URL === "YOUR_GOOGLE_SHEETS_CSV_URL_HERE") {
-    showErrorState("No sheet URL set — open index.html and paste your Google Sheets CSV URL into SHEET_CSV_URL at the top of the script.");
-    return;
-  }
-
-  showLoadingState();
-
-  try {
-    // Google Sheets CSV urls need a cache-busting param so you always get fresh data
-    const url = SHEET_CSV_URL + (SHEET_CSV_URL.includes('?') ? '&' : '?') + '_=' + Date.now();
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = await res.text();
-
-    const rows = parseCSV(text);
-    if (rows.length < 2) throw new Error("Sheet appears to be empty");
-
-    // First row is the header — skip it
-    const dataRows = rows.slice(1);
-    const allData  = dataRows.map(rowToObject).filter(r => r.orderNum); // skip blank rows
-    breadOnly      = allData.filter(r => r.wareType.toLowerCase() === 'bread');
-
-    if (!breadOnly.length) {
-      showErrorState("No rows with Ware Type = 'Bread' found in the sheet.");
-      return;
     }
 
-    populateRouteDropdown();
-    document.getElementById('content').innerHTML = `
+    function populateRouteDropdown() {
+      // Clear existing options except the placeholder
+      while (sel.options.length > 1) sel.remove(1);
+      const routes = [...new Set(breadOnly.map(r => r.route))].sort();
+      routes.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r;
+        const drivers = [...new Set(breadOnly.filter(x => x.route === r).map(x => x.driver))];
+        opt.textContent = `${r}  —  ${drivers.join(', ')}`;
+        sel.appendChild(opt);
+      });
+    }
+
+    async function fetchSheetData() {
+      if (!SHEET_CSV_URL || SHEET_CSV_URL === "YOUR_GOOGLE_SHEETS_CSV_URL_HERE") {
+        showErrorState("No sheet URL set — open index.html and paste your Google Sheets CSV URL into SHEET_CSV_URL at the top of the script.");
+        return;
+      }
+
+      showLoadingState();
+
+      try {
+        // Google Sheets CSV urls need a cache-busting param so you always get fresh data
+        const url = SHEET_CSV_URL + (SHEET_CSV_URL.includes('?') ? '&' : '?') + '_=' + Date.now();
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+
+        const rows = parseCSV(text);
+        if (rows.length < 2) throw new Error("Sheet appears to be empty");
+
+        // First row is the header — skip it
+        const dataRows = rows.slice(1);
+        const allData = dataRows.map(rowToObject).filter(r => r.orderNum); // skip blank rows
+        breadOnly = allData.filter(r => r.wareType.toLowerCase() === 'bread');
+
+        if (!breadOnly.length) {
+          showErrorState("No rows with Ware Type = 'Bread' found in the sheet.");
+          return;
+        }
+
+        populateRouteDropdown();
+        document.getElementById('content').innerHTML = `
       <div class="placeholder">
         <div class="big">🚚</div>
         <p>Select your route to begin</p>
       </div>`;
 
-  } catch (err) {
-    console.error(err);
-    showErrorState("Could not load sheet. Check the URL and make sure the sheet is published to web. (" + err.message + ")");
-  }
-}
+      } catch (err) {
+        console.error(err);
+        showErrorState("Could not load sheet. Check the URL and make sure the sheet is published to web. (" + err.message + ")");
+      }
+    }
 
-// Load data on page open, and add a manual refresh button
-fetchSheetData();
+    // Load data on page open, and add a manual refresh button
+    fetchSheetData();
 
-function toggleSummary() {
-  summaryOpen = !summaryOpen;
-  document.getElementById('summaryItems').classList.toggle('open', summaryOpen);
-  document.getElementById('summaryChevron').classList.toggle('open', summaryOpen);
-}
+    function toggleSummary() {
+      summaryOpen = !summaryOpen;
+      document.getElementById('summaryItems').classList.toggle('open', summaryOpen);
+      document.getElementById('summaryChevron').classList.toggle('open', summaryOpen);
+    }
 
-function renderSummary(orders) {
-  // Aggregate total qty per unique ware name
-  const totals = {};
-  orders.forEach(o => {
-    totals[o.ware] = (totals[o.ware] || 0) + o.qty;
-  });
+    function renderSummary(orders) {
+      // Aggregate total qty per unique ware name
+      const totals = {};
+      orders.forEach(o => {
+        totals[o.ware] = (totals[o.ware] || 0) + o.qty;
+      });
 
-  const entries = Object.entries(totals).sort((a,b) => a[0].localeCompare(b[0]));
-  const doneCount = entries.filter(([ware]) => summaryChecked[ware]).length;
+      const entries = Object.entries(totals).sort((a, b) => a[0].localeCompare(b[0]));
+      const doneCount = entries.filter(([ware]) => summaryChecked[ware]).length;
 
-  document.getElementById('summarySubtitle').textContent =
-    `${doneCount}/${entries.length} types sorted`;
+      document.getElementById('summarySubtitle').textContent =
+        `${doneCount}/${entries.length} types sorted`;
 
-  const box = document.getElementById('summaryItems');
-  box.innerHTML = entries.map(([ware, qty]) => {
-    const isChecked = !!summaryChecked[ware];
-    const safeId = 'sum-' + ware.replace(/\s+/g,'-');
-    return `
+      const box = document.getElementById('summaryItems');
+      box.innerHTML = entries.map(([ware, qty]) => {
+        const isChecked = !!summaryChecked[ware];
+        const safeId = 'sum-' + ware.replace(/\s+/g, '-');
+        return `
       <div class="summary-row ${isChecked ? 's-checked' : ''}" id="${safeId}">
         <div class="summary-checkbox-area">
-          <input type="checkbox" ${isChecked?'checked':''} onchange="toggleSummaryItem('${ware}')">
+          <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleSummaryItem('${ware}')">
         </div>
         <label>
           <span class="summary-ware">${ware}</span>
           <span class="summary-qty">${qty} stk</span>
         </label>
       </div>`;
-  }).join('');
+      }).join('');
 
-  box.classList.toggle('open', summaryOpen);
-  document.getElementById('summaryChevron').classList.toggle('open', summaryOpen);
-  document.getElementById('summaryBox').style.display = 'block';
-}
+      box.classList.toggle('open', summaryOpen);
+      document.getElementById('summaryChevron').classList.toggle('open', summaryOpen);
+      document.getElementById('summaryBox').style.display = 'block';
+    }
 
-function toggleSummaryItem(ware) {
-  summaryChecked[ware] = !summaryChecked[ware];
-  const route = document.getElementById('routeSelect').value;
-  const orders = breadOnly.filter(r => r.route === route);
-  renderSummary(orders);
-}
-function loadRoute() {
-  const route = sel.value;
-  const content = document.getElementById('content');
-  const statsBar = document.getElementById('statsBar');
+    function toggleSummaryItem(ware) {
+      summaryChecked[ware] = !summaryChecked[ware];
+      const route = document.getElementById('routeSelect').value;
+      const orders = breadOnly.filter(r => r.route === route);
+      renderSummary(orders);
+    }
+    function loadRoute() {
+      const route = sel.value;
+      const content = document.getElementById('content');
+      const statsBar = document.getElementById('statsBar');
 
-  if (!route) {
-    document.getElementById('summaryBox').style.display = 'none';
-    statsBar.style.display = 'none';
-    content.innerHTML = `<div class="placeholder"><div class="big">🚚</div><p>Select your route to begin</p></div>`;
-    return;
-  }
+      if (!route) {
+        document.getElementById('summaryBox').style.display = 'none';
+        statsBar.style.display = 'none';
+        content.innerHTML = `<div class="placeholder"><div class="big">🚚</div><p>Select your route to begin</p></div>`;
+        return;
+      }
 
-  const orders = breadOnly.filter(r => r.route === route);
-  if (!orders.length) {
-    content.innerHTML = `<div class="placeholder"><div class="big">📭</div><p>No bread orders for this route</p></div>`;
-    return;
-  }
+      const orders = breadOnly.filter(r => r.route === route);
+      if (!orders.length) {
+        content.innerHTML = `<div class="placeholder"><div class="big">📭</div><p>No bread orders for this route</p></div>`;
+        return;
+      }
 
-  statsBar.style.display = 'flex';
-  updateStats(orders);
-  renderSummary(orders);
-  renderOrders(orders);
-}
+      statsBar.style.display = 'flex';
+      updateStats(orders);
+      renderSummary(orders);
+      renderOrders(orders);
+    }
 
-function renderOrders(orders) {
-  const content = document.getElementById('content');
+    function renderOrders(orders) {
+      const content = document.getElementById('content');
 
-  // Group by customer, preserving order of first appearance
-  const customerMap = {};
-  orders.forEach(o => {
-    if (!customerMap[o.customer]) customerMap[o.customer] = [];
-    customerMap[o.customer].push(o);
-  });
+      // Group by customer, preserving order of first appearance
+      const customerMap = {};
+      orders.forEach(o => {
+        if (!customerMap[o.customer]) customerMap[o.customer] = [];
+        customerMap[o.customer].push(o);
+      });
 
-  const allDone = orders.every(o => checked[o.orderNum]);
-  let html = '';
+      const allDone = orders.every(o => checked[o.orderNum]);
+      let html = '';
 
-  if (allDone) {
-    html += `<div class="all-done"><div class="icon">✅</div><p>Route complete!</p></div>`;
-  }
+      if (allDone) {
+        html += `<div class="all-done"><div class="icon">✅</div><p>Route complete!</p></div>`;
+      }
 
-  Object.entries(customerMap).forEach(([customer, custOrders]) => {
-    const custDone    = custOrders.filter(o =>  checked[o.orderNum]).length;
-    const custPending = custOrders.length - custDone;
-    const allCustDone = custDone === custOrders.length;
+      Object.entries(customerMap).forEach(([customer, custOrders]) => {
+        const custDone = custOrders.filter(o => checked[o.orderNum]).length;
+        const custPending = custOrders.length - custDone;
+        const allCustDone = custDone === custOrders.length;
 
-    html += `
+        html += `
       <div class="customer-group ${allCustDone ? 'cg-done' : ''}">
         <div class="customer-header">
           <span class="customer-name">${customer}</span>
@@ -822,25 +875,25 @@ function renderOrders(orders) {
         </div>
         <div class="customer-orders">`;
 
-    // Pending first, done at bottom within each customer
-    const pending = custOrders.filter(o => !checked[o.orderNum]);
-    const done    = custOrders.filter(o =>  checked[o.orderNum]);
-    [...pending, ...done].forEach(o => html += cardHTML(o));
+        // Pending first, done at bottom within each customer
+        const pending = custOrders.filter(o => !checked[o.orderNum]);
+        const done = custOrders.filter(o => checked[o.orderNum]);
+        [...pending, ...done].forEach(o => html += cardHTML(o));
 
-    html += `</div></div>`;
-  });
+        html += `</div></div>`;
+      });
 
-  html += `<button class="reset-btn" onclick="resetRoute()">↺ Reset checklist</button>`;
-  content.innerHTML = html;
-}
+      html += `<button class="reset-btn" onclick="resetRoute()">↺ Reset checklist</button>`;
+      content.innerHTML = html;
+    }
 
-function cardHTML(o) {
-  const isChecked = !!checked[o.orderNum];
-  return `
+    function cardHTML(o) {
+      const isChecked = !!checked[o.orderNum];
+      return `
     <div class="order-card ${isChecked ? 'checked' : ''}" id="card-${o.orderNum}">
       <label>
         <div class="checkbox-area">
-          <input type="checkbox" ${isChecked?'checked':''} onchange="toggle('${o.orderNum}')">
+          <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggle('${o.orderNum}')">
         </div>
         <div class="order-info">
           <div class="order-top">
@@ -854,33 +907,34 @@ function cardHTML(o) {
         </div>
       </label>
     </div>`;
-}
+    }
 
-function toggle(orderNum) {
-  checked[orderNum] = !checked[orderNum];
-  const route = document.getElementById('routeSelect').value;
-  const orders = breadOnly.filter(r => r.route === route);
-  updateStats(orders);
-  renderOrders(orders);
-}
+    function toggle(orderNum) {
+      checked[orderNum] = !checked[orderNum];
+      const route = document.getElementById('routeSelect').value;
+      const orders = breadOnly.filter(r => r.route === route);
+      updateStats(orders);
+      renderOrders(orders);
+    }
 
-function updateStats(orders) {
-  const doneCount = orders.filter(o => checked[o.orderNum]).length;
-  const totalQty  = orders.reduce((s,o) => s + o.qty, 0);
-  document.getElementById('statTotal').textContent = orders.length;
-  document.getElementById('statDone').textContent  = doneCount;
-  document.getElementById('statQty').textContent   = totalQty;
-}
+    function updateStats(orders) {
+      const doneCount = orders.filter(o => checked[o.orderNum]).length;
+      const totalQty = orders.reduce((s, o) => s + o.qty, 0);
+      document.getElementById('statTotal').textContent = orders.length;
+      document.getElementById('statDone').textContent = doneCount;
+      document.getElementById('statQty').textContent = totalQty;
+    }
 
-function resetRoute() {
-  const route = document.getElementById('routeSelect').value;
-  const orders = breadOnly.filter(r => r.route === route);
-  orders.forEach(o => delete checked[o.orderNum]);
-  summaryChecked = {};
-  updateStats(orders);
-  renderSummary(orders);
-  renderOrders(orders);
-}
-</script>
+    function resetRoute() {
+      const route = document.getElementById('routeSelect').value;
+      const orders = breadOnly.filter(r => r.route === route);
+      orders.forEach(o => delete checked[o.orderNum]);
+      summaryChecked = {};
+      updateStats(orders);
+      renderSummary(orders);
+      renderOrders(orders);
+    }
+  </script>
 </body>
+
 </html>
