@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bread Route Checklist</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700;900&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #1a1a18;
+      --surface: #252520;
+      --border: #3a3a32;
+      --accent: #e8c840;
+      --accent-dim: #b09a28;
+      --text: #f0ede0;
+      --muted: #888878;
+      --done-bg: #1e1e1a;
+      --done-text: #555545;
+      --check: #5abf6a;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Barlow Condensed', sans-serif;
+      min-height: 100vh;
+      padding: 0;
+    }
+
+    header {
+      background: var(--accent);
+      color: #1a1a18;
+      padding: 18px 20px 14px;
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      border-bottom: 3px solid #c8a820;
+    }
+
+    .logo-icon {
+      font-size: 32px;
+      line-height: 1;
+    }
+
+    .header-text h1 {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .header-text p {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      opacity: 0.65;
+      text-transform: uppercase;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .route-selector {
+      background: var(--surface);
+      border-bottom: 2px solid var(--border);
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .route-selector label {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      white-space: nowrap;
+    }
+
+    select {
+      flex: 1;
+      background: var(--bg);
+      color: var(--text);
+      border: 2px solid var(--border);
+      border-radius: 4px;
+      padding: 10px 14px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888878' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      transition: border-color 0.15s;
+    }
+
+    select:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .stats-bar {
+      padding: 10px 20px;
+      display: flex;
+      gap: 20px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+    }
+
+    .stat {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+    }
+
+    .stat strong {
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .stat-divider {
+      color: var(--border);
+    }
+
+    .stat.completed strong {
+      color: var(--check);
+    }
+
+    .content {
+      padding: 16px 20px;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    .placeholder {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+
+    .placeholder .big {
+      font-size: 64px;
+      margin-bottom: 12px;
+    }
+
+    .placeholder p {
+      font-size: 16px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .order-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--accent);
+      border-radius: 4px;
+      margin-bottom: 10px;
+      transition: all 0.2s;
+      overflow: hidden;
+    }
+
+    .order-card.checked {
+      border-left-color: var(--check);
+      background: var(--done-bg);
+      opacity: 0.65;
+    }
+
+    .order-card label {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .checkbox-area {
+      width: 56px;
+      min-height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+    }
+
+    .order-card.checked .checkbox-area {
+      border-right-color: #333;
+    }
+
+    input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 24px;
+      height: 24px;
+      border: 2.5px solid var(--border);
+      border-radius: 3px;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    input[type="checkbox"]:checked {
+      background: var(--check);
+      border-color: var(--check);
+    }
+
+    input[type="checkbox"]:checked::after {
+      content: '';
+      position: absolute;
+      left: 5px;
+      top: 2px;
+      width: 9px;
+      height: 13px;
+      border: 2.5px solid white;
+      border-top: none;
+      border-left: none;
+      transform: rotate(40deg);
+    }
+
+    .order-info {
+      flex: 1;
+      padding: 12px 14px;
+      min-width: 0;
+    }
+
+    .order-top {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      margin-bottom: 4px;
+      flex-wrap: wrap;
+    }
+
+    .ware-name {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      line-height: 1.1;
+    }
+
+    .order-card.checked .ware-name {
+      color: var(--done-text);
+      text-decoration: line-through;
+    }
+
+    .qty-badge {
+      background: var(--accent);
+      color: #1a1a18;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 2px;
+      font-family: 'DM Mono', monospace;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+
+    .order-card.checked .qty-badge {
+      background: #333;
+      color: var(--done-text);
+    }
+
+    .order-meta {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .meta-item {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .order-card.checked .meta-item {
+      color: #444;
+    }
+
+    .meta-label {
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .meta-value {
+      color: var(--text);
+    }
+
+    .order-card.checked .meta-value {
+      color: #555;
+    }
+
+    .section-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 20px 0 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .reset-btn {
+      display: block;
+      width: 100%;
+      margin-top: 24px;
+      margin-bottom: 32px;
+      padding: 14px;
+      background: transparent;
+      border: 2px solid var(--border);
+      color: var(--muted);
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+
+    .reset-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .all-done {
+      text-align: center;
+      padding: 30px 20px;
+      margin-top: 10px;
+    }
+
+    .all-done .icon {
+      font-size: 48px;
+      margin-bottom: 8px;
+    }
+
+    .all-done p {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--check);
+    }
+
+    .summary-box {
+      background: var(--surface);
+      border-bottom: 3px solid var(--accent);
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .summary-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      cursor: pointer;
+      user-select: none;
+      background: #2a2a20;
+    }
+
+    .summary-toggle:hover {
+      background: #303028;
+    }
+
+    .summary-toggle-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .summary-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-family: 'DM Mono', monospace;
+      color: var(--accent);
+    }
+
+    .summary-subtitle {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+
+    .summary-chevron {
+      color: var(--muted);
+      font-size: 14px;
+      transition: transform 0.2s;
+    }
+
+    .summary-chevron.open {
+      transform: rotate(180deg);
+    }
+
+    .summary-items {
+      padding: 8px 12px 12px;
+      display: none;
+    }
+
+    .summary-items.open {
+      display: block;
+    }
+
+    .summary-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .summary-row:last-child {
+      border-bottom: none;
+    }
+
+    .summary-checkbox-area {
+      width: 44px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .summary-row label {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      padding: 10px 10px 10px 0;
+      gap: 10px;
+    }
+
+    .summary-ware {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      transition: color 0.15s;
+    }
+
+    .summary-row.s-checked .summary-ware {
+      color: var(--done-text);
+      text-decoration: line-through;
+    }
+
+    .summary-qty {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--accent);
+      background: #1a1a12;
+      padding: 3px 10px;
+      border-radius: 2px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .summary-row.s-checked .summary-qty {
+      color: var(--done-text);
+      background: #222;
+    }
+
+    margin-bottom: 18px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    overflow: hidden;
+    }
+
+    .customer-group.cg-done {
+      border-color: #2a2a25;
+      opacity: 0.7;
+    }
+
+    .customer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #2e2e28;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .cg-done .customer-header {
+      background: #222220;
+      border-bottom-color: #2a2a25;
+    }
+
+    .customer-name {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .cg-done .customer-name {
+      color: #555545;
+    }
+
+    .customer-tally {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      background: var(--bg);
+      padding: 2px 8px;
+      border-radius: 2px;
+    }
+
+    .customer-tally.tally-done {
+      color: var(--check);
+      background: #1a2a1a;
+    }
+
+    .customer-orders .order-card {
+      border-radius: 0;
+      border-left-width: 4px;
+      border-top: none;
+      border-right: none;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 0;
+    }
+
+    .customer-orders .order-card:last-child {
+      border-bottom: none;
+    }
+
+    .cg-done .customer-orders .order-card {
+      border-bottom-color: #2a2a25;
+    }
+
+    @media (max-width: 400px) {
+      .ware-name {
+        font-size: 17px;
+      }
+
+      .header-text h1 {
+        font-size: 22px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="logo-icon">🍞</div>
+    <div class="header-text">
+      <h1>Bread Run</h1>
+      <p>Route Checklist</p>
+    </div>
+  </header>
+
+  <div class="route-selector">
+    <label>Route</label>
+    <select id="routeSelect" onchange="loadRoute()">
+      <option value="">— Select your route —</option>
+    </select>
+  </div>
+
+  <div class="stats-bar" id="statsBar" style="display:none">
+    <div class="stat"><strong id="statTotal">0</strong> orders</div>
+    <div class="stat-divider">|</div>
+    <div class="stat completed"><strong id="statDone">0</strong> done</div>
+    <div class="stat-divider">|</div>
+    <div class="stat"><strong id="statQty">0</strong> units total</div>
+  </div>
+
+  <div class="summary-box" id="summaryBox" style="display:none">
+    <div class="summary-toggle" onclick="toggleSummary()">
+      <div class="summary-toggle-left">
+        <span class="summary-title">📦 Sorting Stage</span>
+        <span class="summary-subtitle" id="summarySubtitle"></span>
+      </div>
+      <span class="summary-chevron" id="summaryChevron">▼</span>
+    </div>
+    <div class="summary-items" id="summaryItems"></div>
+  </div>
+
+  <div class="content" id="content">
+    <div class="placeholder">
+      <div class="big">🚚</div>
+      <p>Select your route to begin</p>
+    </div>
+  </div>
+
+  <script>
+    // ─── SAMPLE DATA ────────────────────────────────────────────────────────────
+    // In production this would be fetched from Google Sheets
+    const sampleData = [
+      {orderNum: "B-1041", ware: "Ryfylke Brød", wareType: "Bread", qty: 4, supplier: "Nordic Bakery", route: "R1", driver: "Lars", customer: "Joker Stavanger"},
+      {orderNum: "B-1042", ware: "Havre Brød", wareType: "Bread", qty: 4, supplier: "Nordic Bakery", route: "R1", driver: "Lars", customer: "Joker Stavanger"},
+      {orderNum: "B-1043", ware: "Ryfylke Brød", wareType: "Bread", qty: 4, supplier: "Nordic Bakery", route: "R1", driver: "Lars", customer: "Joker Stavanger"},
+      {orderNum: "B-1044", ware: "Grovbrød", wareType: "Bread", qty: 12, supplier: "Stavanger Mills", route: "R1", driver: "Lars", customer: "Joker Stavanger"},
+      {orderNum: "B-1050", ware: "Rugbrød", wareType: "Bread", qty: 8, supplier: "Stavanger Mills", route: "R1", driver: "Lars", customer: "Spar Hillevåg"},
+      {orderNum: "B-1051", ware: "Havreloff", wareType: "Bread", qty: 6, supplier: "Stavanger Mills", route: "R1", driver: "Lars", customer: "Spar Hillevåg"},
+      {orderNum: "B-1052", ware: "Kneipp Hvit", wareType: "Bread", qty: 10, supplier: "Nordic Bakery", route: "R1", driver: "Lars", customer: "Rema 1000 Mariero"},
+      {orderNum: "B-1053", ware: "Kneipp Hvit", wareType: "Bread", qty: 6, supplier: "Nordic Bakery", route: "R1", driver: "Lars", customer: "Rema 1000 Mariero"},
+      {orderNum: "B-1054", ware: "Grovbrød", wareType: "Bread", qty: 8, supplier: "Stavanger Mills", route: "R1", driver: "Lars", customer: "Rema 1000 Mariero"},
+      {orderNum: "B-1055", ware: "Rugbrød", wareType: "Bread", qty: 10, supplier: "Nordic Bakery", route: "R2", driver: "Erik", customer: "Bunnpris Tasta"},
+      {orderNum: "B-1056", ware: "Flatbrød", wareType: "Bread", qty: 30, supplier: "Stavanger Mills", route: "R2", driver: "Erik", customer: "Bunnpris Tasta"},
+      {orderNum: "B-1057", ware: "Ryfylke Brød", wareType: "Bread", qty: 8, supplier: "Nordic Bakery", route: "R2", driver: "Erik", customer: "Coop Extra Madla"},
+      {orderNum: "B-1058", ware: "Havre Brød", wareType: "Bread", qty: 15, supplier: "Nordic Bakery", route: "R2", driver: "Erik", customer: "Coop Extra Madla"},
+      {orderNum: "B-1070", ware: "Kneipp Grov", wareType: "Bread", qty: 20, supplier: "Stavanger Mills", route: "R3", driver: "Ingrid", customer: "Joker Hundvåg"},
+      {orderNum: "B-1071", ware: "Rugbrød", wareType: "Bread", qty: 6, supplier: "Nordic Bakery", route: "R3", driver: "Ingrid", customer: "Joker Hundvåg"},
+      {orderNum: "B-1072", ware: "Flatbrød", wareType: "Bread", qty: 9, supplier: "Stavanger Mills", route: "R3", driver: "Ingrid", customer: "Spar Kvernevik"},
+      // Non-bread items (should be filtered out)
+      {orderNum: "C-2001", ware: "Butter Croissant", wareType: "Pastry", qty: 48, supplier: "Artisan Co.", route: "R1", driver: "Lars", customer: "Joker Stavanger"},
+      {orderNum: "C-2002", ware: "Milk", wareType: "Dairy", qty: 20, supplier: "Tine", route: "R2", driver: "Erik", customer: "Bunnpris Tasta"},
+    ];
+
+    // ─── STATE ──────────────────────────────────────────────────────────────────
+    let checked = {};
+    let summaryChecked = {}; // separate checkboxes for the sorting stage
+    let summaryOpen = true;
+
+    // ─── INIT ────────────────────────────────────────────────────────────────────
+    const breadOnly = sampleData.filter(r => r.wareType === "Bread");
+    const routes = [...new Set(breadOnly.map(r => r.route))].sort();
+
+    const sel = document.getElementById('routeSelect');
+    routes.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r;
+      const drivers = [...new Set(breadOnly.filter(x => x.route === r).map(x => x.driver))];
+      opt.textContent = `${r}  —  ${drivers.join(', ')}`;
+      sel.appendChild(opt);
+    });
+
+    function toggleSummary() {
+      summaryOpen = !summaryOpen;
+      document.getElementById('summaryItems').classList.toggle('open', summaryOpen);
+      document.getElementById('summaryChevron').classList.toggle('open', summaryOpen);
+    }
+
+    function renderSummary(orders) {
+      // Aggregate total qty per unique ware name
+      const totals = {};
+      orders.forEach(o => {
+        totals[o.ware] = (totals[o.ware] || 0) + o.qty;
+      });
+
+      const entries = Object.entries(totals).sort((a, b) => a[0].localeCompare(b[0]));
+      const doneCount = entries.filter(([ware]) => summaryChecked[ware]).length;
+
+      document.getElementById('summarySubtitle').textContent =
+        `${doneCount}/${entries.length} types sorted`;
+
+      const box = document.getElementById('summaryItems');
+      box.innerHTML = entries.map(([ware, qty]) => {
+        const isChecked = !!summaryChecked[ware];
+        const safeId = 'sum-' + ware.replace(/\s+/g, '-');
+        return `
+      <div class="summary-row ${isChecked ? 's-checked' : ''}" id="${safeId}">
+        <div class="summary-checkbox-area">
+          <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleSummaryItem('${ware}')">
+        </div>
+        <label>
+          <span class="summary-ware">${ware}</span>
+          <span class="summary-qty">${qty} stk</span>
+        </label>
+      </div>`;
+      }).join('');
+
+      box.classList.toggle('open', summaryOpen);
+      document.getElementById('summaryChevron').classList.toggle('open', summaryOpen);
+      document.getElementById('summaryBox').style.display = 'block';
+    }
+
+    function toggleSummaryItem(ware) {
+      summaryChecked[ware] = !summaryChecked[ware];
+      const route = document.getElementById('routeSelect').value;
+      const orders = breadOnly.filter(r => r.route === route);
+      renderSummary(orders);
+    }
+    function loadRoute() {
+      const route = sel.value;
+      const content = document.getElementById('content');
+      const statsBar = document.getElementById('statsBar');
+
+      if (!route) {
+        document.getElementById('summaryBox').style.display = 'none';
+        statsBar.style.display = 'none';
+        content.innerHTML = `<div class="placeholder"><div class="big">🚚</div><p>Select your route to begin</p></div>`;
+        return;
+      }
+
+      const orders = breadOnly.filter(r => r.route === route);
+      if (!orders.length) {
+        content.innerHTML = `<div class="placeholder"><div class="big">📭</div><p>No bread orders for this route</p></div>`;
+        return;
+      }
+
+      statsBar.style.display = 'flex';
+      updateStats(orders);
+      renderSummary(orders);
+      renderOrders(orders);
+    }
+
+    function renderOrders(orders) {
+      const content = document.getElementById('content');
+
+      // Group by customer, preserving order of first appearance
+      const customerMap = {};
+      orders.forEach(o => {
+        if (!customerMap[o.customer]) customerMap[o.customer] = [];
+        customerMap[o.customer].push(o);
+      });
+
+      const allDone = orders.every(o => checked[o.orderNum]);
+      let html = '';
+
+      if (allDone) {
+        html += `<div class="all-done"><div class="icon">✅</div><p>Route complete!</p></div>`;
+      }
+
+      Object.entries(customerMap).forEach(([customer, custOrders]) => {
+        const custDone = custOrders.filter(o => checked[o.orderNum]).length;
+        const custPending = custOrders.length - custDone;
+        const allCustDone = custDone === custOrders.length;
+
+        html += `
+      <div class="customer-group ${allCustDone ? 'cg-done' : ''}">
+        <div class="customer-header">
+          <span class="customer-name">${customer}</span>
+          <span class="customer-tally ${allCustDone ? 'tally-done' : ''}">${custDone}/${custOrders.length}</span>
+        </div>
+        <div class="customer-orders">`;
+
+        // Pending first, done at bottom within each customer
+        const pending = custOrders.filter(o => !checked[o.orderNum]);
+        const done = custOrders.filter(o => checked[o.orderNum]);
+        [...pending, ...done].forEach(o => html += cardHTML(o));
+
+        html += `</div></div>`;
+      });
+
+      html += `<button class="reset-btn" onclick="resetRoute()">↺ Reset checklist</button>`;
+      content.innerHTML = html;
+    }
+
+    function cardHTML(o) {
+      const isChecked = !!checked[o.orderNum];
+      return `
+    <div class="order-card ${isChecked ? 'checked' : ''}" id="card-${o.orderNum}">
+      <label>
+        <div class="checkbox-area">
+          <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggle('${o.orderNum}')">
+        </div>
+        <div class="order-info">
+          <div class="order-top">
+            <span class="ware-name">${o.ware}</span>
+            <span class="qty-badge">QTY: ${o.qty}</span>
+          </div>
+          <div class="order-meta">
+            <span class="meta-item"><span class="meta-label">Order</span>&nbsp;<span class="meta-value">${o.orderNum}</span></span>
+            <span class="meta-item"><span class="meta-label">Supplier</span>&nbsp;<span class="meta-value">${o.supplier}</span></span>
+          </div>
+        </div>
+      </label>
+    </div>`;
+    }
+
+    function toggle(orderNum) {
+      checked[orderNum] = !checked[orderNum];
+      const route = document.getElementById('routeSelect').value;
+      const orders = breadOnly.filter(r => r.route === route);
+      updateStats(orders);
+      renderOrders(orders);
+    }
+
+    function updateStats(orders) {
+      const doneCount = orders.filter(o => checked[o.orderNum]).length;
+      const totalQty = orders.reduce((s, o) => s + o.qty, 0);
+      document.getElementById('statTotal').textContent = orders.length;
+      document.getElementById('statDone').textContent = doneCount;
+      document.getElementById('statQty').textContent = totalQty;
+    }
+
+    function resetRoute() {
+      const route = document.getElementById('routeSelect').value;
+      const orders = breadOnly.filter(r => r.route === route);
+      orders.forEach(o => delete checked[o.orderNum]);
+      summaryChecked = {};
+      updateStats(orders);
+      renderSummary(orders);
+      renderOrders(orders);
+    }
+  </script>
+</body>
+
+</html>
