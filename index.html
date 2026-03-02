@@ -614,25 +614,25 @@
     // ─── SAMPLE DATA ────────────────────────────────────────────────────────────
     // In production this would be fetched from Google Sheets
     const sampleData = [
-      {orderNum: "B-1041", ware: "Ryfylke Brød", wareType: "Bread", qty: 4, supplier: "Nordic Bakery", route: "R1", driver: "Lars", customer: "Joker Stavanger"},
-      {orderNum: "B-1042", ware: "Havre Brød", wareType: "Bread", qty: 4, supplier: "Nordic Bakery", route: "R1", driver: "Lars", customer: "Joker Stavanger"},
-      {orderNum: "B-1043", ware: "Ryfylke Brød", wareType: "Bread", qty: 4, supplier: "Nordic Bakery", route: "R1", driver: "Lars", customer: "Joker Stavanger"},
-      {orderNum: "B-1044", ware: "Grovbrød", wareType: "Bread", qty: 12, supplier: "Stavanger Mills", route: "R1", driver: "Lars", customer: "Joker Stavanger"},
-      {orderNum: "B-1050", ware: "Rugbrød", wareType: "Bread", qty: 8, supplier: "Stavanger Mills", route: "R1", driver: "Lars", customer: "Spar Hillevåg"},
-      {orderNum: "B-1051", ware: "Havreloff", wareType: "Bread", qty: 6, supplier: "Stavanger Mills", route: "R1", driver: "Lars", customer: "Spar Hillevåg"},
-      {orderNum: "B-1052", ware: "Kneipp Hvit", wareType: "Bread", qty: 10, supplier: "Nordic Bakery", route: "R1", driver: "Lars", customer: "Rema 1000 Mariero"},
-      {orderNum: "B-1053", ware: "Kneipp Hvit", wareType: "Bread", qty: 6, supplier: "Nordic Bakery", route: "R1", driver: "Lars", customer: "Rema 1000 Mariero"},
-      {orderNum: "B-1054", ware: "Grovbrød", wareType: "Bread", qty: 8, supplier: "Stavanger Mills", route: "R1", driver: "Lars", customer: "Rema 1000 Mariero"},
-      {orderNum: "B-1055", ware: "Rugbrød", wareType: "Bread", qty: 10, supplier: "Nordic Bakery", route: "R2", driver: "Erik", customer: "Bunnpris Tasta"},
-      {orderNum: "B-1056", ware: "Flatbrød", wareType: "Bread", qty: 30, supplier: "Stavanger Mills", route: "R2", driver: "Erik", customer: "Bunnpris Tasta"},
-      {orderNum: "B-1057", ware: "Ryfylke Brød", wareType: "Bread", qty: 8, supplier: "Nordic Bakery", route: "R2", driver: "Erik", customer: "Coop Extra Madla"},
-      {orderNum: "B-1058", ware: "Havre Brød", wareType: "Bread", qty: 15, supplier: "Nordic Bakery", route: "R2", driver: "Erik", customer: "Coop Extra Madla"},
-      {orderNum: "B-1070", ware: "Kneipp Grov", wareType: "Bread", qty: 20, supplier: "Stavanger Mills", route: "R3", driver: "Ingrid", customer: "Joker Hundvåg"},
-      {orderNum: "B-1071", ware: "Rugbrød", wareType: "Bread", qty: 6, supplier: "Nordic Bakery", route: "R3", driver: "Ingrid", customer: "Joker Hundvåg"},
-      {orderNum: "B-1072", ware: "Flatbrød", wareType: "Bread", qty: 9, supplier: "Stavanger Mills", route: "R3", driver: "Ingrid", customer: "Spar Kvernevik"},
+      {orderNum: "B-1041", ware: "Ryfylke Brød", wareType: "Bread", qty: 4, supplier: "Nordic Bakery", route: "1", driver: "Knut", customer: "Joker Stavanger"},
+      {orderNum: "B-1042", ware: "Havre Brød", wareType: "Bread", qty: 4, supplier: "Nordic Bakery", route: "1", driver: "Knut", customer: "Joker Stavanger"},
+      {orderNum: "B-1043", ware: "Ryfylke Brød", wareType: "Bread", qty: 4, supplier: "Nordic Bakery", route: "1", driver: "Knut", customer: "Joker Stavanger"},
+      {orderNum: "B-1044", ware: "Grovbrød", wareType: "Bread", qty: 12, supplier: "Stavanger Mills", route: "1", driver: "Knut", customer: "Joker Stavanger"},
+      {orderNum: "B-1050", ware: "Rugbrød", wareType: "Bread", qty: 8, supplier: "Stavanger Mills", route: "1", driver: "Knut", customer: "Spar Hillevåg"},
+      {orderNum: "B-1051", ware: "Havreloff", wareType: "Bread", qty: 6, supplier: "Stavanger Mills", route: "1", driver: "Knut", customer: "Spar Hillevåg"},
+      {orderNum: "B-1052", ware: "Kneipp Hvit", wareType: "Bread", qty: 10, supplier: "Nordic Bakery", route: "1", driver: "Knut", customer: "Rema 1000 Mariero"},
+      {orderNum: "B-1053", ware: "Kneipp Hvit", wareType: "Bread", qty: 6, supplier: "Nordic Bakery", route: "1", driver: "Knut", customer: "Rema 1000 Mariero"},
+      {orderNum: "B-1054", ware: "Grovbrød", wareType: "Bread", qty: 8, supplier: "Stavanger Mills", route: "1", driver: "Knut", customer: "Rema 1000 Mariero"},
+      {orderNum: "B-1055", ware: "Rugbrød", wareType: "Bread", qty: 10, supplier: "Nordic Bakery", route: "2", driver: "Stian", customer: "Bunnpris Tasta"},
+      {orderNum: "B-1056", ware: "Flatbrød", wareType: "Bread", qty: 30, supplier: "Stavanger Mills", route: "2", driver: "Stian", customer: "Bunnpris Tasta"},
+      {orderNum: "B-1057", ware: "Ryfylke Brød", wareType: "Bread", qty: 8, supplier: "Nordic Bakery", route: "2", driver: "Stian", customer: "Coop Extra Madla"},
+      {orderNum: "B-1058", ware: "Havre Brød", wareType: "Bread", qty: 15, supplier: "Nordic Bakery", route: "2", driver: "Stian", customer: "Coop Extra Madla"},
+      {orderNum: "B-1070", ware: "Kneipp Grov", wareType: "Bread", qty: 20, supplier: "Stavanger Mills", route: "3", driver: "David", customer: "Joker Hundvåg"},
+      {orderNum: "B-1071", ware: "Rugbrød", wareType: "Bread", qty: 6, supplier: "Nordic Bakery", route: "3", driver: "David", customer: "Joker Hundvåg"},
+      {orderNum: "B-1072", ware: "Flatbrød", wareType: "Bread", qty: 9, supplier: "Stavanger Mills", route: "3", driver: "David", customer: "Spar Kvernevik"},
       // Non-bread items (should be filtered out)
-      {orderNum: "C-2001", ware: "Butter Croissant", wareType: "Pastry", qty: 48, supplier: "Artisan Co.", route: "R1", driver: "Lars", customer: "Joker Stavanger"},
-      {orderNum: "C-2002", ware: "Milk", wareType: "Dairy", qty: 20, supplier: "Tine", route: "R2", driver: "Erik", customer: "Bunnpris Tasta"},
+      {orderNum: "C-2001", ware: "Butter Croissant", wareType: "Pastry", qty: 48, supplier: "Artisan Co.", route: "1", driver: "Knut", customer: "Joker Stavanger"},
+      {orderNum: "C-2002", ware: "Milk", wareType: "Dairy", qty: 20, supplier: "Tine", route: "2", driver: "Stian", customer: "Bunnpris Tasta"},
     ];
 
     // ─── STATE ──────────────────────────────────────────────────────────────────
