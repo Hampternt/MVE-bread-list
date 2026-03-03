@@ -556,6 +556,30 @@
       background: #1a2a1a;
     }
 
+    .customer-header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-btn {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 2px;
+      border: 1px solid;
+      cursor: pointer;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+
+    .status-btn.status-not_packed  { background: transparent; color: var(--muted); border-color: var(--border); }
+    .status-btn.status-in_progress { background: rgba(232,200,64,0.12); color: var(--accent); border-color: var(--accent-dim); }
+    .status-btn.status-finished    { background: rgba(90,191,106,0.12); color: var(--check); border-color: var(--check); }
+
     .customer-orders .order-card {
       border-radius: 0;
       border-left-width: 4px;
@@ -639,6 +663,10 @@
     //   4. Click Publish and copy the link — paste it below
     const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQtpZq0YITZ1P_7kRssEnU8JW8c-wXsq7odSN2GjcGmBsJAIrmtC0QWXjjv6tSafF_u-BJ90ZLvR5IK/pub?output=csv";
 
+    // Paste your Google Apps Script Web App URL here to enable cross-device status sync.
+    // Leave empty to use in-memory only (statuses reset on refresh, single-device only).
+    const APPS_SCRIPT_URL = "";
+
     // Expected column order (0-indexed). Change these numbers if your columns
     // are in a different order in the sheet.
     const COLS = {
@@ -657,6 +685,9 @@
     let summaryChecked = {};
     let summaryOpen = true;
     let breadOnly = [];
+    let customerStatuses = {}; // "route|customer" → "not_packed"|"in_progress"|"finished"
+    const STATUS_CYCLE  = ['not_packed', 'in_progress', 'finished'];
+    const STATUS_LABELS = { not_packed: 'Not Packed', in_progress: 'In Progress', finished: 'Finished' };
 
     // ─── CSV PARSER ──────────────────────────────────────────────────────────────
     // Handles quoted fields, commas inside quotes, and Windows line endings
@@ -760,6 +791,7 @@
         }
 
         populateRouteDropdown();
+        fetchStatuses();
         document.getElementById('content').innerHTML = `
       <div class="placeholder">
         <div class="big">🚚</div>
@@ -824,6 +856,28 @@
       const orders = breadOnly.filter(r => r.route === route);
       renderSummary(orders);
     }
+    async function fetchStatuses() {
+      if (!APPS_SCRIPT_URL) return;
+      try {
+        const res = await fetch(APPS_SCRIPT_URL + '?action=read&_=' + Date.now());
+        if (!res.ok) return;
+        Object.assign(customerStatuses, await res.json());
+        const route = document.getElementById('routeSelect').value;
+        if (route) renderOrders(breadOnly.filter(r => r.route === route));
+      } catch (err) { console.warn('Could not fetch statuses:', err); }
+    }
+
+    function cycleStatus(btn) {
+      const { route, customer } = btn.dataset;
+      const key = route + '|' + customer;
+      const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(customerStatuses[key] || 'not_packed') + 1) % 3];
+      customerStatuses[key] = next;
+      renderOrders(breadOnly.filter(r => r.route === route));
+      if (APPS_SCRIPT_URL) {
+        fetch(APPS_SCRIPT_URL + '?' + new URLSearchParams({ action: 'update', route, customer, status: next }), { mode: 'no-cors' }).catch(() => {});
+      }
+    }
+
     function loadRoute() {
       const route = sel.value;
       const content = document.getElementById('content');
@@ -871,12 +925,20 @@
         const custDone = custOrders.filter(o => routeChecked[o.orderNum]).length;
         const custPending = custOrders.length - custDone;
         const allCustDone = custDone === custOrders.length;
+        const statusKey = route + '|' + customer;
+        const custStatus = customerStatuses[statusKey] || 'not_packed';
 
         html += `
       <div class="customer-group ${allCustDone ? 'cg-done' : ''}">
         <div class="customer-header">
           <span class="customer-name">${customer}</span>
-          <span class="customer-tally ${allCustDone ? 'tally-done' : ''}">${custDone}/${custOrders.length}</span>
+          <div class="customer-header-right">
+            <button class="status-btn status-${custStatus}"
+              data-route="${route.replace(/"/g,'&quot;')}"
+              data-customer="${customer.replace(/"/g,'&quot;')}"
+              onclick="cycleStatus(this)">${STATUS_LABELS[custStatus]}</button>
+            <span class="customer-tally ${allCustDone ? 'tally-done' : ''}">${custDone}/${custOrders.length}</span>
+          </div>
         </div>
         <div class="customer-orders">`;
 
