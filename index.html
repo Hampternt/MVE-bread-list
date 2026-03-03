@@ -788,15 +788,17 @@
         totals[o.ware] = (totals[o.ware] || 0) + o.qty;
       });
 
+      const route = orders.length ? orders[0].route : '';
+      const routeSummary = summaryChecked[route] || {};
       const entries = Object.entries(totals).sort((a, b) => a[0].localeCompare(b[0]));
-      const doneCount = entries.filter(([ware]) => summaryChecked[ware]).length;
+      const doneCount = entries.filter(([ware]) => routeSummary[ware]).length;
 
       document.getElementById('summarySubtitle').textContent =
         `${doneCount}/${entries.length} types sorted`;
 
       const box = document.getElementById('summaryItems');
       box.innerHTML = entries.map(([ware, qty]) => {
-        const isChecked = !!summaryChecked[ware];
+        const isChecked = !!routeSummary[ware];
         const safeId = 'sum-' + ware.replace(/\s+/g, '-');
         return `
       <div class="summary-row ${isChecked ? 's-checked' : ''}" id="${safeId}">
@@ -816,8 +818,9 @@
     }
 
     function toggleSummaryItem(ware) {
-      summaryChecked[ware] = !summaryChecked[ware];
       const route = document.getElementById('routeSelect').value;
+      if (!summaryChecked[route]) summaryChecked[route] = {};
+      summaryChecked[route][ware] = !summaryChecked[route][ware];
       const orders = breadOnly.filter(r => r.route === route);
       renderSummary(orders);
     }
@@ -847,6 +850,8 @@
 
     function renderOrders(orders) {
       const content = document.getElementById('content');
+      const route = orders.length ? orders[0].route : '';
+      const routeChecked = checked[route] || {};
 
       // Group by customer, preserving order of first appearance
       const customerMap = {};
@@ -855,7 +860,7 @@
         customerMap[o.customer].push(o);
       });
 
-      const allDone = orders.every(o => checked[o.orderNum]);
+      const allDone = orders.every(o => routeChecked[o.orderNum]);
       let html = '';
 
       if (allDone) {
@@ -863,7 +868,7 @@
       }
 
       Object.entries(customerMap).forEach(([customer, custOrders]) => {
-        const custDone = custOrders.filter(o => checked[o.orderNum]).length;
+        const custDone = custOrders.filter(o => routeChecked[o.orderNum]).length;
         const custPending = custOrders.length - custDone;
         const allCustDone = custDone === custOrders.length;
 
@@ -876,8 +881,8 @@
         <div class="customer-orders">`;
 
         // Pending first, done at bottom within each customer
-        const pending = custOrders.filter(o => !checked[o.orderNum]);
-        const done = custOrders.filter(o => checked[o.orderNum]);
+        const pending = custOrders.filter(o => !routeChecked[o.orderNum]);
+        const done = custOrders.filter(o => routeChecked[o.orderNum]);
         [...pending, ...done].forEach(o => html += cardHTML(o));
 
         html += `</div></div>`;
@@ -888,7 +893,8 @@
     }
 
     function cardHTML(o) {
-      const isChecked = !!checked[o.orderNum];
+      const route = document.getElementById('routeSelect').value;
+      const isChecked = !!(checked[route] || {})[o.orderNum];
       return `
     <div class="order-card ${isChecked ? 'checked' : ''}" id="card-${o.orderNum}">
       <label>
@@ -910,15 +916,18 @@
     }
 
     function toggle(orderNum) {
-      checked[orderNum] = !checked[orderNum];
       const route = document.getElementById('routeSelect').value;
+      if (!checked[route]) checked[route] = {};
+      checked[route][orderNum] = !checked[route][orderNum];
       const orders = breadOnly.filter(r => r.route === route);
       updateStats(orders);
       renderOrders(orders);
     }
 
     function updateStats(orders) {
-      const doneCount = orders.filter(o => checked[o.orderNum]).length;
+      const route = orders.length ? orders[0].route : '';
+      const routeChecked = checked[route] || {};
+      const doneCount = orders.filter(o => routeChecked[o.orderNum]).length;
       const totalQty = orders.reduce((s, o) => s + o.qty, 0);
       document.getElementById('statTotal').textContent = orders.length;
       document.getElementById('statDone').textContent = doneCount;
@@ -928,8 +937,8 @@
     function resetRoute() {
       const route = document.getElementById('routeSelect').value;
       const orders = breadOnly.filter(r => r.route === route);
-      orders.forEach(o => delete checked[o.orderNum]);
-      summaryChecked = {};
+      checked[route] = {};
+      summaryChecked[route] = {};
       updateStats(orders);
       renderSummary(orders);
       renderOrders(orders);
