@@ -717,7 +717,7 @@ function getRouteOrders(route) {
 }
 
 // Returns customer list sorted highest routeOrdering first
-function sortedCustomers(orders) {
+function sortedCustomers(orders, routeChecked) {
   const customerMap = {};
   orders.forEach(o => {
     if (!customerMap[o.customer]) {
@@ -728,8 +728,13 @@ function sortedCustomers(orders) {
       customerMap[o.customer].maxOrdering = o.routeOrdering;
     }
   });
-  // Sort DESC: highest ordering first (last delivery, packed first, sits deepest in car)
-  return Object.entries(customerMap).sort((a,b) => b[1].maxOrdering - a[1].maxOrdering);
+  // Sort: non-done customers first (by routeOrdering DESC), fully-done customers last
+  return Object.entries(customerMap).sort((a, b) => {
+    const aDone = a[1].orders.every(o => routeChecked[o.orderNum]);
+    const bDone = b[1].orders.every(o => routeChecked[o.orderNum]);
+    if (aDone !== bDone) return aDone ? 1 : -1;
+    return b[1].maxOrdering - a[1].maxOrdering;
+  });
 }
 
 // ─── SUMMARY (SORTING STAGE) ──────────────────────────────────────────────
@@ -787,7 +792,7 @@ function renderOrders(orders) {
   const scrollY     = window.scrollY;
   const route       = orders[0].route;
   const routeChecked = checked[route] || {};
-  const customers   = sortedCustomers(orders);
+  const customers   = sortedCustomers(orders, routeChecked);
   const allDone     = orders.every(o => routeChecked[o.orderNum]);
 
   let html = '';
