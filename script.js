@@ -176,39 +176,36 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // ─── STATUS SYNC ──────────────────────────────────────────────
+// Applies an array of status rows (from GET or POST response) into local state.
+function applyStatusRows(rows) {
+  const keyToItem = {};
+  allData.forEach(d => { keyToItem[d.itemKey] = { route: d.route, itemId: d.itemId }; });
+  rows.forEach(r => {
+    if (r.orderNum.startsWith('SUMMARY|')) {
+      const [, rRoute, rWare] = r.orderNum.split('|');
+      if (!summaryChecked[rRoute]) summaryChecked[rRoute] = {};
+      summaryChecked[rRoute][rWare] = (r.status === 'checked');
+      return;
+    }
+    const item = keyToItem[r.orderNum]; // orderNum column stores itemKey
+    if (!item) return; // stale or old-format entry — ignore
+    if (!checked[item.route]) checked[item.route] = {};
+    if (r.status === 'checked')   checked[item.route][item.itemId] = true;
+    if (r.status === 'unchecked') checked[item.route][item.itemId] = false;
+  });
+}
+
 // Fetches individual item statuses from the Apps Script Web App and re-renders.
 // Silently no-ops if APPS_SCRIPT_URL is not set.
 async function fetchStatuses() {
   if (!APPS_SCRIPT_URL) return;
   console.log('[BreadRun] Fetching item statuses from Apps Script…');
   try {
-    const res = await fetch(APPS_SCRIPT_URL);
+    const res  = await fetch(APPS_SCRIPT_URL);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rows = await res.json();
     console.log(`[BreadRun] Status fetch returned ${rows.length} rows`);
-
-    // Build itemKey → { route, itemId } lookup for fast matching
-    const keyToItem = {};
-    allData.forEach(d => { keyToItem[d.itemKey] = { route: d.route, itemId: d.itemId }; });
-
-    let restored = 0;
-    rows.forEach(r => {
-      // Handle SUMMARY| prefixed rows (summary checkbox state)
-      if (r.orderNum.startsWith('SUMMARY|')) {
-        const [, rRoute, rWare] = r.orderNum.split('|');
-        if (!summaryChecked[rRoute]) summaryChecked[rRoute] = {};
-        summaryChecked[rRoute][rWare] = (r.status === 'checked');
-        return;
-      }
-
-      const item = keyToItem[r.orderNum]; // orderNum column stores itemKey
-      if (!item) return; // stale or old-format entry — ignore
-      if (!checked[item.route]) checked[item.route] = {};
-      if (r.status === 'checked')   { checked[item.route][item.itemId] = true;  restored++; }
-      if (r.status === 'unchecked') { checked[item.route][item.itemId] = false; }
-    });
-    console.log(`[BreadRun] Restored ${restored} checked items from remote`);
-
+    applyStatusRows(rows);
     if (sel.value) renderCurrentRoute();
   } catch (err) {
     console.warn('[BreadRun] Could not load statuses:', err.message);
@@ -216,19 +213,22 @@ async function fetchStatuses() {
 }
 
 // Posts an individual item status to the Apps Script Web App.
+// Returns fresh rows from the POST response, or null on failure.
 async function postStatus({ orderNum, route, customer, status }) {
-  if (!APPS_SCRIPT_URL) return;
+  if (!APPS_SCRIPT_URL) return null;
   console.log(`[BreadRun] POST status — route=${route} customer="${customer}" item=${orderNum} status=${status}`);
   try {
-    const res = await fetch(APPS_SCRIPT_URL, {
+    const res  = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ orderNum, route, customer, status }),
     });
     const json = await res.json();
     console.log(`[BreadRun] POST response — action=${json.action || json.error || '?'}`);
+    return json.rows || null;
   } catch (err) {
     console.warn('[BreadRun] Could not save status:', err.message);
+    return null;
   }
 }
 
@@ -449,17 +449,25 @@ document.getElementById('content').addEventListener('change', async e => {
   if (changedItem && APPS_SCRIPT_URL) {
     const isNowChecked = !!checked[route][itemId];
     console.log(`[BreadRun] Checkbox toggled — route=${route} customer="${changedItem.customer}" ware="${changedItem.ware}" → ${isNowChecked ? 'checked' : 'unchecked'}`);
-    postStatus({ orderNum: changedItem.itemKey, route, customer: changedItem.customer, status: isNowChecked ? 'checked' : 'unchecked' });
 
-    // After a customer is fully done, dim the summary and pull a fresh snapshot
-    // so other drivers' summary checkboxes are visible before the driver taps in.
+    // After a customer is fully done, show overlay and do a single POST that
+    // returns fresh rows — one round trip instead of POST + separate GET.
     const custOrders  = orders.filter(o => o.customer === changedItem.customer);
     const allCustDone = custOrders.every(o => checked[route][o.itemId]);
     if (allCustDone) {
-      const summaryBox = document.getElementById('summaryBox');
-      summaryBox.classList.add('summary-syncing');
-      await fetchStatuses();
-      summaryBox.classList.remove('summary-syncing');
+      const syncOverlay = document.getElementById('syncOverlay');
+      syncOverlay.classList.add('open');
+      const rows = await postStatus({ orderNum: changedItem.itemKey, route, customer: changedItem.customer, status: isNowChecked ? 'checked' : 'unchecked' });
+      if (rows) {
+        applyStatusRows(rows);
+        renderCurrentRoute();
+      } else {
+        await fetchStatuses(); // fallback if POST response missing rows
+      }
+      syncOverlay.classList.remove('open');
+      return; // renderCurrentRoute() above already called updateStats + renderOrders
+    } else {
+      postStatus({ orderNum: changedItem.itemKey, route, customer: changedItem.customer, status: isNowChecked ? 'checked' : 'unchecked' });
     }
   }
 

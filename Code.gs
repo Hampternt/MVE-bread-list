@@ -63,19 +63,34 @@ function doPost(e) {
   var allRows = sheet.getDataRange().getValues();
 
   // Search for existing row matching orderNum (rows start at index 1 = row 2 in sheet)
+  var action = 'inserted';
   for (var i = 1; i < allRows.length; i++) {
     if (String(allRows[i][0]) === orderNum) {
       sheet.getRange(i + 1, 4).setValue(status);
       sheet.getRange(i + 1, 5).setValue(new Date().toISOString());
       console.log('[doPost] Updated — route=' + route + ' customer="' + customer + '" item=' + orderNum + ' status=' + status);
-      return jsonResponse({ ok: true, action: 'updated' });
+      action = 'updated';
+      break;
     }
   }
 
-  // No existing row — append new
-  sheet.appendRow([orderNum, route, customer, status, new Date().toISOString()]);
-  console.log('[doPost] Inserted — route=' + route + ' customer="' + customer + '" item=' + orderNum + ' status=' + status);
-  return jsonResponse({ ok: true, action: 'inserted' });
+  if (action === 'inserted') {
+    // No existing row — append new
+    sheet.appendRow([orderNum, route, customer, status, new Date().toISOString()]);
+    console.log('[doPost] Inserted — route=' + route + ' customer="' + customer + '" item=' + orderNum + ' status=' + status);
+  }
+
+  // Return all rows so the client can apply fresh state without a separate GET
+  var freshData = sheet.getDataRange().getValues();
+  var rows = freshData.slice(1).map(function(row) {
+    return {
+      orderNum : String(row[0]),
+      route    : String(row[1]),
+      customer : String(row[2]),
+      status   : String(row[3])
+    };
+  }).filter(function(r) { return r.orderNum && r.status; });
+  return jsonResponse({ ok: true, action: action, rows: rows });
 }
 
 // ─── Helpers ───────────────────────────────────────────────────

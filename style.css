@@ -254,14 +254,29 @@ select:focus { outline: none; border-color: var(--accent); }
 }
 .summary-row.s-checked .summary-qty { color: var(--done-text); background: #222; }
 
-.summary-box.summary-syncing {
-  opacity: 0.45;
-  pointer-events: none;
-  transition: opacity 0.15s;
+/* ── SYNC OVERLAY — full-screen block during post-customer fetch ── */
+.sync-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(26, 26, 24, 0.55);
+  align-items: center;
+  justify-content: center;
 }
-.summary-box.summary-syncing .summary-subtitle::after {
-  content: ' · syncing…';
+.sync-overlay.open { display: flex; }
+
+.sync-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 10px 20px;
+  border-radius: 4px;
 }
 
 /* ── CONTENT AREA ───────────────────────────────────────────── */
