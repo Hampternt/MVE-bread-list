@@ -183,7 +183,7 @@ async function postStatus({ orderNum, route, customer, status }) {
   try {
     await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ orderNum, route, customer, status }),
     });
   } catch (err) {
