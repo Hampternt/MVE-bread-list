@@ -23,7 +23,10 @@ function doGet(e) {
   var data  = sheet.getDataRange().getValues();
 
   // If only header row (or empty), return empty array
-  if (data.length < 2) return jsonResponse([]);
+  if (data.length < 2) {
+    console.log('[doGet] Sheet empty — returning []');
+    return jsonResponse([]);
+  }
 
   var rows = data.slice(1)
     .map(function(row) {
@@ -37,6 +40,7 @@ function doGet(e) {
     })
     .filter(function(r) { return r.orderNum && r.status; });
 
+  console.log('[doGet] Returning ' + rows.length + ' item statuses');
   return jsonResponse(rows);
 }
 
@@ -51,6 +55,7 @@ function doPost(e) {
   var status   = String(payload.status   || '');
 
   if (!orderNum || !status) {
+    console.warn('[doPost] Rejected — missing orderNum or status. Payload: ' + JSON.stringify(payload));
     return jsonResponse({ ok: false, error: 'Missing orderNum or status' });
   }
 
@@ -62,12 +67,14 @@ function doPost(e) {
     if (String(allRows[i][0]) === orderNum) {
       sheet.getRange(i + 1, 4).setValue(status);
       sheet.getRange(i + 1, 5).setValue(new Date().toISOString());
+      console.log('[doPost] Updated — route=' + route + ' customer="' + customer + '" item=' + orderNum + ' status=' + status);
       return jsonResponse({ ok: true, action: 'updated' });
     }
   }
 
   // No existing row — append new
   sheet.appendRow([orderNum, route, customer, status, new Date().toISOString()]);
+  console.log('[doPost] Inserted — route=' + route + ' customer="' + customer + '" item=' + orderNum + ' status=' + status);
   return jsonResponse({ ok: true, action: 'inserted' });
 }
 
@@ -76,6 +83,7 @@ function getOrCreateSheet() {
   var ss    = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(SHEET_NAME);
   if (!sheet) {
+    console.log('[getOrCreateSheet] Sheet not found — creating ' + SHEET_NAME);
     sheet = ss.insertSheet(SHEET_NAME);
     sheet.appendRow(HEADERS);
   }

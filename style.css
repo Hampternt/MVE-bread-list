@@ -254,6 +254,16 @@ select:focus { outline: none; border-color: var(--accent); }
 }
 .summary-row.s-checked .summary-qty { color: var(--done-text); background: #222; }
 
+.summary-box.summary-syncing {
+  opacity: 0.45;
+  pointer-events: none;
+  transition: opacity 0.15s;
+}
+.summary-box.summary-syncing .summary-subtitle::after {
+  content: ' · syncing…';
+  color: var(--muted);
+}
+
 /* ── CONTENT AREA ───────────────────────────────────────────── */
 .content { padding: 14px 16px; max-width: 680px; margin: 0 auto; }
 

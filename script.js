@@ -88,6 +88,7 @@ async function fetchSheetData() {
   }
 
   showMsg('⏳', 'Loading…');
+  console.log('[BreadRun] Fetching sheet data…');
 
   const isLocal  = location.protocol === 'file:';
   const PROXY    = 'https://corsproxy.io/?';
@@ -117,6 +118,8 @@ async function fetchSheetData() {
       showMsg('📭', 'No orders found in sheet');
       return;
     }
+
+    console.log(`[BreadRun] Sheet loaded — ${allData.length} items across ${[...new Set(allData.map(r => r.route))].length} routes`);
 
     // Rebuild route dropdown, preserving current selection if still valid
     const currentRoute = sel.value;
@@ -148,52 +151,84 @@ async function fetchSheetData() {
     fetchStatuses(); // async — re-renders once statuses arrive; no-op if URL not set
 
   } catch (err) {
-    console.error(err);
+    console.error('[BreadRun] Sheet fetch failed:', err);
     showMsg('⚠️', 'Could not load sheet — ' + err.message);
   }
 }
 
 fetchSheetData();
 
+// ─── AUTO-REFRESH ─────────────────────────────────────────────
+// Poll statuses every 30 seconds so other drivers' changes appear automatically.
+setInterval(() => {
+  if (sel.value) {
+    console.log('[BreadRun] Auto-poll: fetching statuses…');
+    fetchStatuses();
+  }
+}, 30000);
+
+// Immediately sync when the user returns to this tab.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && sel.value) {
+    console.log('[BreadRun] Tab focused: fetching statuses…');
+    fetchStatuses();
+  }
+});
+
 // ─── STATUS SYNC ──────────────────────────────────────────────
 // Fetches individual item statuses from the Apps Script Web App and re-renders.
 // Silently no-ops if APPS_SCRIPT_URL is not set.
 async function fetchStatuses() {
   if (!APPS_SCRIPT_URL) return;
+  console.log('[BreadRun] Fetching item statuses from Apps Script…');
   try {
     const res = await fetch(APPS_SCRIPT_URL);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rows = await res.json();
+    console.log(`[BreadRun] Status fetch returned ${rows.length} rows`);
 
     // Build itemKey → { route, itemId } lookup for fast matching
     const keyToItem = {};
     allData.forEach(d => { keyToItem[d.itemKey] = { route: d.route, itemId: d.itemId }; });
 
+    let restored = 0;
     rows.forEach(r => {
+      // Handle SUMMARY| prefixed rows (summary checkbox state)
+      if (r.orderNum.startsWith('SUMMARY|')) {
+        const [, rRoute, rWare] = r.orderNum.split('|');
+        if (!summaryChecked[rRoute]) summaryChecked[rRoute] = {};
+        summaryChecked[rRoute][rWare] = (r.status === 'checked');
+        return;
+      }
+
       const item = keyToItem[r.orderNum]; // orderNum column stores itemKey
       if (!item) return; // stale or old-format entry — ignore
       if (!checked[item.route]) checked[item.route] = {};
-      if (r.status === 'checked')   checked[item.route][item.itemId] = true;
-      if (r.status === 'unchecked') checked[item.route][item.itemId] = false;
+      if (r.status === 'checked')   { checked[item.route][item.itemId] = true;  restored++; }
+      if (r.status === 'unchecked') { checked[item.route][item.itemId] = false; }
     });
+    console.log(`[BreadRun] Restored ${restored} checked items from remote`);
 
     if (sel.value) renderCurrentRoute();
   } catch (err) {
-    console.warn('Could not load statuses:', err.message);
+    console.warn('[BreadRun] Could not load statuses:', err.message);
   }
 }
 
-// Posts a customer status update to the Apps Script Web App.
+// Posts an individual item status to the Apps Script Web App.
 async function postStatus({ orderNum, route, customer, status }) {
   if (!APPS_SCRIPT_URL) return;
+  console.log(`[BreadRun] POST status — route=${route} customer="${customer}" item=${orderNum} status=${status}`);
   try {
-    await fetch(APPS_SCRIPT_URL, {
+    const res = await fetch(APPS_SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ orderNum, route, customer, status }),
     });
+    const json = await res.json();
+    console.log(`[BreadRun] POST response — action=${json.action || json.error || '?'}`);
   } catch (err) {
-    console.warn('Could not save status:', err.message);
+    console.warn('[BreadRun] Could not save status:', err.message);
   }
 }
 
@@ -310,6 +345,12 @@ document.getElementById('summaryItems').addEventListener('change', e => {
   const route = sel.value;
   if (!summaryChecked[route]) summaryChecked[route] = {};
   summaryChecked[route][ware] = !summaryChecked[route][ware];
+  postStatus({
+    orderNum: 'SUMMARY|' + route + '|' + ware,
+    route,
+    customer: '',
+    status: summaryChecked[route][ware] ? 'checked' : 'unchecked',
+  });
   renderSummary(getRouteOrders(route));
 });
 
@@ -391,7 +432,7 @@ function cardHTML(o, routeChecked) {
 
 // Delegated listener on content — survives innerHTML replacement in renderOrders.
 // Handles both order-card checkboxes and the reset button.
-document.getElementById('content').addEventListener('change', e => {
+document.getElementById('content').addEventListener('change', async e => {
   if (!e.target.matches('input[type="checkbox"]')) return;
   const card   = e.target.closest('.order-card');
   if (!card) return;
@@ -407,7 +448,19 @@ document.getElementById('content').addEventListener('change', e => {
   const changedItem = orders.find(o => o.itemId === itemId);
   if (changedItem && APPS_SCRIPT_URL) {
     const isNowChecked = !!checked[route][itemId];
+    console.log(`[BreadRun] Checkbox toggled — route=${route} customer="${changedItem.customer}" ware="${changedItem.ware}" → ${isNowChecked ? 'checked' : 'unchecked'}`);
     postStatus({ orderNum: changedItem.itemKey, route, customer: changedItem.customer, status: isNowChecked ? 'checked' : 'unchecked' });
+
+    // After a customer is fully done, dim the summary and pull a fresh snapshot
+    // so other drivers' summary checkboxes are visible before the driver taps in.
+    const custOrders  = orders.filter(o => o.customer === changedItem.customer);
+    const allCustDone = custOrders.every(o => checked[route][o.itemId]);
+    if (allCustDone) {
+      const summaryBox = document.getElementById('summaryBox');
+      summaryBox.classList.add('summary-syncing');
+      await fetchStatuses();
+      summaryBox.classList.remove('summary-syncing');
+    }
   }
 
   updateStats(orders);
