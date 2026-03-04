@@ -169,6 +169,13 @@ async function fetchStatuses() {
       if (!validOrderNums.has(r.orderNum)) return; // stale entry — new run, ignore
       if (!customerStatus[r.route]) customerStatus[r.route] = {};
       customerStatus[r.route][r.orderNum] = r.status;
+
+      // If fully done, tick all that customer's items in local checked state
+      if (r.status === 'done') {
+        const custItems = allData.filter(d => d.route === r.route && d.customer === r.customer);
+        if (!checked[r.route]) checked[r.route] = {};
+        custItems.forEach(d => { checked[r.route][d.itemId] = true; });
+      }
     });
 
     if (sel.value) renderCurrentRoute();
