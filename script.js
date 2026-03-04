@@ -35,7 +35,6 @@ const COLS = {
 // ─── STATE ────────────────────────────────────────────────────
 let checked        = {};   // { route: { itemId: bool } }
 let summaryChecked = {};   // { route: { ware: bool } }
-let customerStatus = {};   // { route: { orderNum: 'in_progress'|'done' } } — from Google Sheets
 let summaryOpen    = true;
 let summarySort    = 'qty-desc';  // 'qty-desc' = high→low  |  'qty-asc' = low→high
 let allData        = [];   // all rows parsed from sheet
@@ -107,7 +106,11 @@ async function fetchSheetData() {
     // itemId is a unique per-row index — orderNum alone isn't unique because
     // multiple bread line items can share the same Order ID.
     allData = rows.slice(1)
-      .map((fields, i) => ({ ...rowToObject(fields), itemId: String(i) }))
+      .map((fields, i) => {
+        const o = { ...rowToObject(fields), itemId: String(i) };
+        o.itemKey = o.orderNum + '|' + o.ware;  // stable cross-device identity
+        return o;
+      })
       .filter(r => r.orderNum);
 
     if (!allData.length) {
@@ -153,7 +156,7 @@ async function fetchSheetData() {
 fetchSheetData();
 
 // ─── STATUS SYNC ──────────────────────────────────────────────
-// Fetches customer statuses from the Apps Script Web App and re-renders.
+// Fetches individual item statuses from the Apps Script Web App and re-renders.
 // Silently no-ops if APPS_SCRIPT_URL is not set.
 async function fetchStatuses() {
   if (!APPS_SCRIPT_URL) return;
@@ -162,20 +165,16 @@ async function fetchStatuses() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rows = await res.json();
 
-    // Only keep statuses for order numbers that exist in the current sheet data
-    const validOrderNums = new Set(allData.map(r => r.orderNum));
-    customerStatus = {};
-    rows.forEach(r => {
-      if (!validOrderNums.has(r.orderNum)) return; // stale entry — new run, ignore
-      if (!customerStatus[r.route]) customerStatus[r.route] = {};
-      customerStatus[r.route][r.orderNum] = r.status;
+    // Build itemKey → { route, itemId } lookup for fast matching
+    const keyToItem = {};
+    allData.forEach(d => { keyToItem[d.itemKey] = { route: d.route, itemId: d.itemId }; });
 
-      // If fully done, tick all that customer's items in local checked state
-      if (r.status === 'done') {
-        const custItems = allData.filter(d => d.route === r.route && d.customer === r.customer);
-        if (!checked[r.route]) checked[r.route] = {};
-        custItems.forEach(d => { checked[r.route][d.itemId] = true; });
-      }
+    rows.forEach(r => {
+      const item = keyToItem[r.orderNum]; // orderNum column stores itemKey
+      if (!item) return; // stale or old-format entry — ignore
+      if (!checked[item.route]) checked[item.route] = {};
+      if (r.status === 'checked')   checked[item.route][item.itemId] = true;
+      if (r.status === 'unchecked') checked[item.route][item.itemId] = false;
     });
 
     if (sel.value) renderCurrentRoute();
@@ -332,12 +331,10 @@ function renderOrders(orders) {
 
   // ─── CUSTOMER GROUP ──────────────────────────────────────────
   customers.forEach(([customer, { orders: custOrders }]) => {
-    const custDone     = custOrders.filter(o => routeChecked[o.itemId]).length;
-    const allCustDone  = custDone === custOrders.length;
-    const orderNum     = custOrders[0].orderNum;
-    const remoteStatus = (customerStatus[route] || {})[orderNum];
-    const effectiveDone = allCustDone || remoteStatus === 'done';
-    const inProgress    = !effectiveDone && (custDone > 0 || remoteStatus === 'in_progress');
+    const custDone    = custOrders.filter(o => routeChecked[o.itemId]).length;
+    const allCustDone = custDone === custOrders.length;
+    const effectiveDone = allCustDone;
+    const inProgress    = !effectiveDone && custDone > 0;
 
     html += `
       <div class="customer-group ${effectiveDone ? 'cg-done' : inProgress ? 'cg-in-progress' : ''}">
@@ -406,20 +403,11 @@ document.getElementById('content').addEventListener('change', e => {
   const orders       = getRouteOrders(route);
   const routeChecked = checked[route];
 
-  // Determine new customer status and POST it
+  // POST individual item state
   const changedItem = orders.find(o => o.itemId === itemId);
   if (changedItem && APPS_SCRIPT_URL) {
-    const custOrders   = orders.filter(o => o.customer === changedItem.customer);
-    const checkedCount = custOrders.filter(o => routeChecked[o.itemId]).length;
-    const newStatus    = checkedCount === custOrders.length ? 'done'
-                       : checkedCount > 0                  ? 'in_progress'
-                       : null;
-    if (newStatus) {
-      const orderNum = custOrders[0].orderNum;
-      if (!customerStatus[route]) customerStatus[route] = {};
-      customerStatus[route][orderNum] = newStatus;
-      postStatus({ orderNum, route, customer: changedItem.customer, status: newStatus });
-    }
+    const isNowChecked = !!checked[route][itemId];
+    postStatus({ orderNum: changedItem.itemKey, route, customer: changedItem.customer, status: isNowChecked ? 'checked' : 'unchecked' });
   }
 
   updateStats(orders);
