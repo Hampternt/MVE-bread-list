@@ -1,967 +1,834 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bread Route Checklist</title>
-  <link
-    href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700;900&display=swap"
-    rel="stylesheet">
-  <style>
-    :root {
-      --bg: #1a1a18;
-      --surface: #252520;
-      --border: #3a3a32;
-      --accent: #e8c840;
-      --accent-dim: #b09a28;
-      --text: #f0ede0;
-      --muted: #888878;
-      --done-bg: #1e1e1a;
-      --done-text: #555545;
-      --check: #5abf6a;
-    }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Bread Run</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:       #1a1a18;
+    --surface:  #252520;
+    --border:   #3a3a32;
+    --accent:   #e8c840;
+    --accent-dim: #b09a28;
+    --text:     #f0ede0;
+    --muted:    #888878;
+    --done-bg:  #1e1e1a;
+    --done-text:#555545;
+    --check:    #5abf6a;
+  }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: 'Barlow Condensed', sans-serif;
-      min-height: 100vh;
-      padding: 0;
-    }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow Condensed', sans-serif;
+    min-height: 100vh;
+    /* prevent rubber-band scroll revealing white behind header */
+    overscroll-behavior: none;
+  }
 
-    header {
-      background: var(--accent);
-      color: #1a1a18;
-      padding: 18px 20px 14px;
-      display: flex;
-      align-items: flex-end;
-      gap: 12px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      border-bottom: 3px solid #c8a820;
-    }
+  /* ── HEADER ── */
+  header {
+    background: var(--accent);
+    color: #1a1a18;
+    padding: 18px 20px 14px;
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 3px solid #c8a820;
+  }
 
-    .logo-icon {
-      font-size: 32px;
-      line-height: 1;
-    }
+  .logo-icon { font-size: 32px; line-height: 1; }
 
-    .header-text h1 {
-      font-size: 28px;
-      font-weight: 900;
-      letter-spacing: 0.04em;
-      line-height: 1;
-      text-transform: uppercase;
-    }
+  .header-text h1 {
+    font-size: 28px;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
 
-    .header-text p {
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      opacity: 0.65;
-      text-transform: uppercase;
-      font-family: 'DM Mono', monospace;
-    }
+  .header-text p {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    opacity: 0.65;
+    text-transform: uppercase;
+    font-family: 'DM Mono', monospace;
+  }
 
-    .refresh-btn {
-      margin-left: auto;
-      background: rgba(0, 0, 0, 0.15);
-      border: 2px solid rgba(0, 0, 0, 0.2);
-      color: #1a1a18;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 14px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      padding: 6px 14px;
-      border-radius: 3px;
-      cursor: pointer;
-    }
+  .refresh-btn {
+    margin-left: auto;
+    background: rgba(0,0,0,0.15);
+    border: 2px solid rgba(0,0,0,0.2);
+    color: #1a1a18;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 8px 16px;  /* larger touch target */
+    border-radius: 3px;
+    cursor: pointer;
+    min-width: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .refresh-btn:active { background: rgba(0,0,0,0.3); }
 
-    .refresh-btn:hover {
-      background: rgba(0, 0, 0, 0.25);
-    }
-
+  /* ── ROUTE SELECTOR ── */
+  .route-selector {
     background: var(--surface);
     border-bottom: 2px solid var(--border);
-    padding: 16px 20px;
+    padding: 14px 20px;
     display: flex;
     align-items: center;
     gap: 14px;
-    }
+  }
 
-    .route-selector label {
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
-      font-family: 'DM Mono', monospace;
-      white-space: nowrap;
-    }
+  .route-selector label {
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    white-space: nowrap;
+  }
 
-    select {
-      flex: 1;
-      background: var(--bg);
-      color: var(--text);
-      border: 2px solid var(--border);
-      border-radius: 4px;
-      padding: 10px 14px;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 18px;
-      font-weight: 600;
-      letter-spacing: 0.03em;
-      cursor: pointer;
-      appearance: none;
-      -webkit-appearance: none;
-      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888878' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-      background-repeat: no-repeat;
-      background-position: right 14px center;
-      transition: border-color 0.15s;
-    }
+  select {
+    flex: 1;
+    background: var(--bg);
+    color: var(--text);
+    border: 2px solid var(--border);
+    border-radius: 4px;
+    padding: 12px 36px 12px 14px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888878' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    min-height: 48px; /* comfortable touch target */
+  }
+  select:focus { outline: none; border-color: var(--accent); }
 
-    select:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
+  /* ── STATS BAR ── */
+  .stats-bar {
+    padding: 10px 20px;
+    display: flex;
+    gap: 20px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+  }
 
-    .stats-bar {
-      padding: 10px 20px;
-      display: flex;
-      gap: 20px;
-      background: var(--bg);
-      border-bottom: 1px solid var(--border);
-      font-family: 'DM Mono', monospace;
-      font-size: 12px;
-    }
+  .stat { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+  .stat strong { color: var(--text); font-size: 14px; }
+  .stat-divider { color: var(--border); }
+  .stat.completed strong { color: var(--check); }
 
-    .stat {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      color: var(--muted);
-    }
+  /* ── SORTING STAGE ── */
+  .summary-box {
+    background: var(--surface);
+    border-bottom: 3px solid var(--accent);
+    overflow: hidden;
+  }
 
-    .stat strong {
-      color: var(--text);
-      font-size: 14px;
-    }
+  .summary-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    cursor: pointer;
+    user-select: none;
+    background: #2a2a20;
+    min-height: 48px;
+  }
+  .summary-toggle:active { background: #303028; }
 
-    .stat-divider {
-      color: var(--border);
-    }
+  .summary-toggle-left { display: flex; align-items: center; gap: 10px; }
 
-    .stat.completed strong {
-      color: var(--check);
-    }
+  .summary-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-family: 'DM Mono', monospace;
+    color: var(--accent);
+  }
 
-    .content {
-      padding: 16px 20px;
-      max-width: 680px;
-      margin: 0 auto;
-    }
+  .summary-subtitle {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+  }
 
-    .placeholder {
-      text-align: center;
-      padding: 60px 20px;
-      color: var(--muted);
-    }
+  .summary-chevron {
+    color: var(--muted);
+    font-size: 14px;
+    transition: transform 0.2s;
+  }
+  .summary-chevron.open { transform: rotate(180deg); }
 
-    .placeholder .big {
-      font-size: 64px;
-      margin-bottom: 12px;
-    }
+  .summary-items { padding: 8px 12px 12px; display: none; }
+  .summary-items.open { display: block; }
 
-    .placeholder p {
-      font-size: 16px;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-    }
+  .summary-row {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    min-height: 52px; /* large touch target */
+  }
+  .summary-row:last-child { border-bottom: none; }
 
-    .order-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-left: 4px solid var(--accent);
-      border-radius: 4px;
-      margin-bottom: 10px;
-      transition: all 0.2s;
-      overflow: hidden;
-    }
+  .summary-checkbox-area {
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
 
-    .order-card.checked {
-      border-left-color: var(--check);
-      background: var(--done-bg);
-      opacity: 0.65;
-    }
+  .summary-row label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    padding: 10px 10px 10px 0;
+    gap: 10px;
+  }
 
-    .order-card label {
-      display: flex;
-      align-items: center;
-      gap: 0;
-      cursor: pointer;
-      padding: 0;
-    }
+  .summary-ware { font-size: 16px; font-weight: 600; letter-spacing: 0.02em; }
+  .summary-row.s-checked .summary-ware { color: var(--done-text); text-decoration: line-through; }
 
-    .checkbox-area {
-      width: 56px;
-      min-height: 72px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      border-right: 1px solid var(--border);
-    }
+  .summary-qty {
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    background: #1a1a12;
+    padding: 3px 10px;
+    border-radius: 2px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .summary-row.s-checked .summary-qty { color: var(--done-text); background: #222; }
 
-    .order-card.checked .checkbox-area {
-      border-right-color: #333;
-    }
+  /* ── CONTENT ── */
+  .content {
+    padding: 14px 16px;
+    max-width: 680px;
+    margin: 0 auto;
+  }
 
-    input[type="checkbox"] {
-      appearance: none;
-      -webkit-appearance: none;
-      width: 24px;
-      height: 24px;
-      border: 2.5px solid var(--border);
-      border-radius: 3px;
-      cursor: pointer;
-      position: relative;
-      transition: all 0.15s;
-      flex-shrink: 0;
-    }
+  .placeholder { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .placeholder .big { font-size: 64px; margin-bottom: 12px; }
+  .placeholder p { font-size: 16px; letter-spacing: 0.05em; text-transform: uppercase; }
 
-    input[type="checkbox"]:checked {
-      background: var(--check);
-      border-color: var(--check);
-    }
-
-    input[type="checkbox"]:checked::after {
-      content: '';
-      position: absolute;
-      left: 5px;
-      top: 2px;
-      width: 9px;
-      height: 13px;
-      border: 2.5px solid white;
-      border-top: none;
-      border-left: none;
-      transform: rotate(40deg);
-    }
-
-    .order-info {
-      flex: 1;
-      padding: 12px 14px;
-      min-width: 0;
-    }
-
-    .order-top {
-      display: flex;
-      align-items: baseline;
-      gap: 10px;
-      margin-bottom: 4px;
-      flex-wrap: wrap;
-    }
-
-    .ware-name {
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-      line-height: 1.1;
-    }
-
-    .order-card.checked .ware-name {
-      color: var(--done-text);
-      text-decoration: line-through;
-    }
-
-    .qty-badge {
-      background: var(--accent);
-      color: #1a1a18;
-      font-size: 13px;
-      font-weight: 700;
-      padding: 2px 8px;
-      border-radius: 2px;
-      font-family: 'DM Mono', monospace;
-      letter-spacing: 0.04em;
-      white-space: nowrap;
-    }
-
-    .order-card.checked .qty-badge {
-      background: #333;
-      color: var(--done-text);
-    }
-
-    .order-meta {
-      display: flex;
-      gap: 14px;
-      flex-wrap: wrap;
-    }
-
-    .meta-item {
-      font-family: 'DM Mono', monospace;
-      font-size: 11px;
-      color: var(--muted);
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .order-card.checked .meta-item {
-      color: #444;
-    }
-
-    .meta-label {
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-
-    .meta-value {
-      color: var(--text);
-    }
-
-    .order-card.checked .meta-value {
-      color: #555;
-    }
-
-    .section-label {
-      font-family: 'DM Mono', monospace;
-      font-size: 11px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin: 20px 0 8px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .reset-btn {
-      display: block;
-      width: 100%;
-      margin-top: 24px;
-      margin-bottom: 32px;
-      padding: 14px;
-      background: transparent;
-      border: 2px solid var(--border);
-      color: var(--muted);
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 16px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      cursor: pointer;
-      border-radius: 4px;
-      transition: all 0.15s;
-    }
-
-    .reset-btn:hover {
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-
-    .all-done {
-      text-align: center;
-      padding: 30px 20px;
-      margin-top: 10px;
-    }
-
-    .all-done .icon {
-      font-size: 48px;
-      margin-bottom: 8px;
-    }
-
-    .all-done p {
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--check);
-    }
-
-    .summary-box {
-      background: var(--surface);
-      border-bottom: 3px solid var(--accent);
-      padding: 0;
-      overflow: hidden;
-    }
-
-    .summary-toggle {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 12px 20px;
-      cursor: pointer;
-      user-select: none;
-      background: #2a2a20;
-    }
-
-    .summary-toggle:hover {
-      background: #303028;
-    }
-
-    .summary-toggle-left {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .summary-title {
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      font-family: 'DM Mono', monospace;
-      color: var(--accent);
-    }
-
-    .summary-subtitle {
-      font-family: 'DM Mono', monospace;
-      font-size: 11px;
-      color: var(--muted);
-      letter-spacing: 0.06em;
-    }
-
-    .summary-chevron {
-      color: var(--muted);
-      font-size: 14px;
-      transition: transform 0.2s;
-    }
-
-    .summary-chevron.open {
-      transform: rotate(180deg);
-    }
-
-    .summary-items {
-      padding: 8px 12px 12px;
-      display: none;
-    }
-
-    .summary-items.open {
-      display: block;
-    }
-
-    .summary-row {
-      display: flex;
-      align-items: center;
-      gap: 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .summary-row:last-child {
-      border-bottom: none;
-    }
-
-    .summary-checkbox-area {
-      width: 44px;
-      height: 44px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .summary-row label {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      cursor: pointer;
-      padding: 10px 10px 10px 0;
-      gap: 10px;
-    }
-
-    .summary-ware {
-      font-size: 16px;
-      font-weight: 600;
-      letter-spacing: 0.02em;
-      transition: color 0.15s;
-    }
-
-    .summary-row.s-checked .summary-ware {
-      color: var(--done-text);
-      text-decoration: line-through;
-    }
-
-    .summary-qty {
-      font-family: 'DM Mono', monospace;
-      font-size: 13px;
-      font-weight: 500;
-      color: var(--accent);
-      background: #1a1a12;
-      padding: 3px 10px;
-      border-radius: 2px;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    .summary-row.s-checked .summary-qty {
-      color: var(--done-text);
-      background: #222;
-    }
-
-    margin-bottom: 18px;
+  /* ── CUSTOMER GROUP ── */
+  .customer-group {
+    margin-bottom: 14px;
     border: 1px solid var(--border);
     border-radius: 5px;
     overflow: hidden;
-    }
+  }
 
-    .customer-group.cg-done {
-      border-color: #2a2a25;
-      opacity: 0.7;
-    }
+  .customer-group.cg-done { border-color: #2a2a25; opacity: 0.7; }
 
-    .customer-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: #2e2e28;
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border);
-    }
+  .customer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #2e2e28;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    gap: 10px;
+  }
 
-    .cg-done .customer-header {
-      background: #222220;
-      border-bottom-color: #2a2a25;
-    }
+  .cg-done .customer-header { background: #222220; border-bottom-color: #2a2a25; }
 
-    .customer-name {
-      font-size: 16px;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      color: var(--accent);
-    }
+  .customer-name {
+    font-size: 14px;        /* smaller to handle long all-caps names */
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--accent);
+    line-height: 1.3;
+    /* allow wrapping for very long names */
+    flex: 1;
+    min-width: 0;
+  }
+  .cg-done .customer-name { color: #555545; }
 
-    .cg-done .customer-name {
-      color: #555545;
-    }
+  .customer-tally {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    background: var(--bg);
+    padding: 2px 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .customer-tally.tally-done { color: var(--check); background: #1a2a1a; }
 
-    .customer-tally {
-      font-family: 'DM Mono', monospace;
-      font-size: 12px;
-      color: var(--muted);
-      background: var(--bg);
-      padding: 2px 8px;
-      border-radius: 2px;
-    }
+  /* ── ORDER CARDS ── */
+  .order-card {
+    background: var(--surface);
+    border-left: 4px solid var(--accent);
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s, opacity 0.15s;
+  }
+  .order-card:last-child { border-bottom: none; }
+  .order-card.checked { border-left-color: var(--check); background: var(--done-bg); opacity: 0.65; }
 
-    .customer-tally.tally-done {
-      color: var(--check);
-      background: #1a2a1a;
-    }
+  /* entire card row is the touch target */
+  .order-card label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 0;
+    min-height: 64px; /* comfortable touch height */
+  }
+  .order-card:active { background: #2a2a24; }
 
-    .customer-header-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+  .checkbox-area {
+    width: 56px;
+    min-height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border-right: 1px solid var(--border);
+  }
+  .order-card.checked .checkbox-area { border-right-color: #333; }
 
-    .status-btn {
-      font-family: 'DM Mono', monospace;
-      font-size: 11px;
-      font-weight: 500;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      padding: 3px 10px;
-      border-radius: 2px;
-      border: 1px solid;
-      cursor: pointer;
-      transition: all 0.15s;
-      white-space: nowrap;
-    }
+  input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 26px;
+    height: 26px;
+    border: 2.5px solid var(--border);
+    border-radius: 3px;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  input[type="checkbox"]:checked { background: var(--check); border-color: var(--check); }
+  input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    left: 6px; top: 2px;
+    width: 9px; height: 13px;
+    border: 2.5px solid white;
+    border-top: none; border-left: none;
+    transform: rotate(40deg);
+  }
 
-    .status-btn.status-not_packed  { background: transparent; color: var(--muted); border-color: var(--border); }
-    .status-btn.status-in_progress { background: rgba(232,200,64,0.12); color: var(--accent); border-color: var(--accent-dim); }
-    .status-btn.status-finished    { background: rgba(90,191,106,0.12); color: var(--check); border-color: var(--check); }
+  .order-info { flex: 1; padding: 12px 14px; min-width: 0; }
 
-    .customer-orders .order-card {
-      border-radius: 0;
-      border-left-width: 4px;
-      border-top: none;
-      border-right: none;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 0;
-    }
+  .order-top {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+  }
 
-    .customer-orders .order-card:last-child {
-      border-bottom: none;
-    }
+  .ware-name { font-size: 18px; font-weight: 700; letter-spacing: 0.02em; line-height: 1.2; }
+  .order-card.checked .ware-name { color: var(--done-text); text-decoration: line-through; }
 
-    .cg-done .customer-orders .order-card {
-      border-bottom-color: #2a2a25;
-    }
+  .qty-badge {
+    background: var(--accent);
+    color: #1a1a18;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 2px;
+    font-family: 'DM Mono', monospace;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .order-card.checked .qty-badge { background: #333; color: var(--done-text); }
 
-    @media (max-width: 400px) {
-      .ware-name {
-        font-size: 17px;
-      }
+  .order-meta { display: flex; gap: 14px; flex-wrap: wrap; }
 
-      .header-text h1 {
-        font-size: 22px;
-      }
-    }
-  </style>
+  .meta-item {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .order-card.checked .meta-item { color: #444; }
+  .meta-label { text-transform: uppercase; letter-spacing: 0.06em; }
+  .meta-value { color: var(--text); }
+  .order-card.checked .meta-value { color: #555; }
+
+  /* ── ALL DONE ── */
+  .all-done { text-align: center; padding: 28px 20px; }
+  .all-done .icon { font-size: 48px; margin-bottom: 8px; }
+  .all-done p { font-size: 22px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--check); }
+
+  /* ── RESET BUTTON ── */
+  .reset-btn {
+    display: block;
+    width: 100%;
+    margin-top: 20px;
+    margin-bottom: 32px;
+    padding: 16px; /* large touch target */
+    background: transparent;
+    border: 2px solid var(--border);
+    color: var(--muted);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.15s;
+  }
+  .reset-btn:active { border-color: var(--accent); color: var(--accent); }
+
+  /* ── CONFIRM DIALOG ── */
+  .confirm-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 200;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .confirm-overlay.open { display: flex; }
+
+  .confirm-sheet {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px 10px 0 0;
+    width: 100%;
+    max-width: 500px;
+    padding: 24px 20px 32px;
+  }
+
+  .confirm-title {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .confirm-body {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 24px;
+    line-height: 1.6;
+  }
+
+  .confirm-actions { display: flex; gap: 10px; }
+
+  .confirm-cancel {
+    flex: 1;
+    padding: 16px;
+    background: transparent;
+    border: 2px solid var(--border);
+    color: var(--muted);
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+
+  .confirm-ok {
+    flex: 1;
+    padding: 16px;
+    background: #3a1a1a;
+    border: 2px solid #6a2a2a;
+    color: #ff7070;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 4px;
+  }
+
+  @media (max-width: 380px) {
+    .ware-name { font-size: 16px; }
+    .header-text h1 { font-size: 22px; }
+    .customer-name { font-size: 12px; }
+  }
+</style>
 </head>
-
 <body>
 
-  <header>
-    <div class="logo-icon">🍞</div>
-    <div class="header-text">
-      <h1>Bread Run</h1>
-      <p>Route Checklist</p>
+<header>
+  <div class="logo-icon">🍞</div>
+  <div class="header-text">
+    <h1>Bread Run</h1>
+    <p>Route Checklist</p>
+  </div>
+  <button class="refresh-btn" onclick="fetchSheetData()">↻ Refresh</button>
+</header>
+
+<div class="route-selector">
+  <label>Route</label>
+  <select id="routeSelect" onchange="loadRoute()">
+    <option value="">— Select your route —</option>
+  </select>
+</div>
+
+<div class="stats-bar" id="statsBar" style="display:none">
+  <div class="stat"><strong id="statTotal">0</strong> orders</div>
+  <div class="stat-divider">|</div>
+  <div class="stat completed"><strong id="statDone">0</strong> done</div>
+  <div class="stat-divider">|</div>
+  <div class="stat"><strong id="statQty">0</strong> units total</div>
+</div>
+
+<div class="summary-box" id="summaryBox" style="display:none">
+  <div class="summary-toggle" onclick="toggleSummary()">
+    <div class="summary-toggle-left">
+      <span class="summary-title">📦 Sorting Stage</span>
+      <span class="summary-subtitle" id="summarySubtitle"></span>
     </div>
-    <button class="refresh-btn" onclick="fetchSheetData()">↻ Refresh</button>
-  </header>
-
-  <div class="route-selector">
-    <label>Route</label>
-    <select id="routeSelect" onchange="loadRoute()">
-      <option value="">— Select your route —</option>
-    </select>
+    <span class="summary-chevron" id="summaryChevron">▼</span>
   </div>
+  <div class="summary-items" id="summaryItems"></div>
+</div>
 
-  <div class="stats-bar" id="statsBar" style="display:none">
-    <div class="stat"><strong id="statTotal">0</strong> orders</div>
-    <div class="stat-divider">|</div>
-    <div class="stat completed"><strong id="statDone">0</strong> done</div>
-    <div class="stat-divider">|</div>
-    <div class="stat"><strong id="statQty">0</strong> units total</div>
+<div class="content" id="content">
+  <div class="placeholder">
+    <div class="big">🚚</div>
+    <p>Select your route to begin</p>
   </div>
+</div>
 
-  <div class="summary-box" id="summaryBox" style="display:none">
-    <div class="summary-toggle" onclick="toggleSummary()">
-      <div class="summary-toggle-left">
-        <span class="summary-title">📦 Sorting Stage</span>
-        <span class="summary-subtitle" id="summarySubtitle"></span>
-      </div>
-      <span class="summary-chevron" id="summaryChevron">▼</span>
-    </div>
-    <div class="summary-items" id="summaryItems"></div>
-  </div>
-
-  <div class="content" id="content">
-    <div class="placeholder">
-      <div class="big">🚚</div>
-      <p>Select your route to begin</p>
+<!-- Reset confirmation bottom sheet -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-sheet">
+    <div class="confirm-title">Reset checklist?</div>
+    <div class="confirm-body">All ticked items will be cleared.<br>This cannot be undone.</div>
+    <div class="confirm-actions">
+      <button class="confirm-cancel" onclick="closeConfirm()">Cancel</button>
+      <button class="confirm-ok"    onclick="doReset()">Reset</button>
     </div>
   </div>
+</div>
 
-  <script>
-    // ─── CONFIGURATION ───────────────────────────────────────────────────────────
-    // Paste your Google Sheets CSV URL here.
-    // How to get it:
-    //   1. Open your Google Sheet
-    //   2. File → Share → Publish to web
-    //   3. Choose "Comma-separated values (.csv)" and the correct sheet tab
-    //   4. Click Publish and copy the link — paste it below
-    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQtpZq0YITZ1P_7kRssEnU8JW8c-wXsq7odSN2GjcGmBsJAIrmtC0QWXjjv6tSafF_u-BJ90ZLvR5IK/pub?output=csv";
+<script>
+// ─── CONFIGURATION ────────────────────────────────────────────────────────
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQtpZq0YITZ1P_7kRssEnU8JW8c-wXsq7odSN2GjcGmBsJAIrmtC0QWXjjv6tSafF_u-BJ90ZLvR5IK/pub?output=csv";
+const APPS_SCRIPT_URL = ""; // leave empty for now
 
-    // Paste your Google Apps Script Web App URL here to enable cross-device status sync.
-    // Leave empty to use in-memory only (statuses reset on refresh, single-device only).
-    const APPS_SCRIPT_URL = "";
+// ─── REAL COLUMN MAPPING (0-indexed) ─────────────────────────────────────
+// Matches: PSR-BREAD-2026-03-04 sheet exactly
+const COLS = {
+  orderNum      : 0,   // Order ID
+  qty           : 1,   // Quantity
+  // col 2 = Product ID (not used)
+  ware          : 3,   // Product Name
+  // col 4 = Supplier SKU (not used)
+  // col 5 = Position (not used)
+  supplier      : 6,   // Supplier
+  customer      : 7,   // Customer
+  // col 8 = Department (not used for now)
+  // col 9 = Delivery street (not used per brief)
+  // col 10 = Comment (not used per brief)
+  route         : 11,  // Route nickname
+  routeOrdering : 12,  // Route ordering — used to sort customers, NOT shown
+  // col 13 = Accept alternatives (not used)
+};
 
-    // Expected column order (0-indexed). Change these numbers if your columns
-    // are in a different order in the sheet.
-    const COLS = {
-      orderNum: 0,  // Order number
-      ware: 1,  // Ware
-      wareType: 2,  // Ware type
-      qty: 3,  // Qty
-      supplier: 4,  // Supplier
-      route: 5,  // Route
-      driver: 6,  // Driver
-      customer: 7,  // Customer
-    };
+// ─── STATE ───────────────────────────────────────────────────────────────
+let checked        = {};  // { route: { orderNum: bool } }
+let summaryChecked = {};  // { route: { ware: bool } }
+let summaryOpen    = true;
+let allData        = [];  // all rows from sheet (no type filter needed)
 
-    // ─── STATE ──────────────────────────────────────────────────────────────────
-    let checked = {};
-    let summaryChecked = {};
-    let summaryOpen = true;
-    let breadOnly = [];
-    let customerStatuses = {}; // "route|customer" → "not_packed"|"in_progress"|"finished"
-    const STATUS_CYCLE  = ['not_packed', 'in_progress', 'finished'];
-    const STATUS_LABELS = { not_packed: 'Not Packed', in_progress: 'In Progress', finished: 'Finished' };
+// ─── CSV PARSER ───────────────────────────────────────────────────────────
+function parseCSV(text) {
+  const rows  = [];
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    const fields = [];
+    let cur = '', inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+        else inQ = !inQ;
+      } else if (ch === ',' && !inQ) { fields.push(cur.trim()); cur = ''; }
+      else cur += ch;
+    }
+    fields.push(cur.trim());
+    rows.push(fields);
+  }
+  return rows;
+}
 
-    // ─── CSV PARSER ──────────────────────────────────────────────────────────────
-    // Handles quoted fields, commas inside quotes, and Windows line endings
-    function parseCSV(text) {
-      const rows = [];
-      const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        const fields = [];
-        let cur = '', inQuotes = false;
-        for (let i = 0; i < line.length; i++) {
-          const ch = line[i];
-          if (ch === '"') {
-            // Two quotes in a row inside quotes = escaped quote
-            if (inQuotes && line[i + 1] === '"') {cur += '"'; i++;}
-            else inQuotes = !inQuotes;
-          } else if (ch === ',' && !inQuotes) {
-            fields.push(cur.trim());
-            cur = '';
-          } else {
-            cur += ch;
-          }
-        }
-        fields.push(cur.trim());
-        rows.push(fields);
-      }
-      return rows;
+function rowToObject(fields) {
+  return {
+    orderNum      : String(fields[COLS.orderNum]      || '').trim(),
+    qty           : parseInt(fields[COLS.qty])         || 0,
+    ware          : String(fields[COLS.ware]           || '').trim(),
+    supplier      : String(fields[COLS.supplier]       || '').trim(),
+    customer      : String(fields[COLS.customer]       || '').trim(),
+    route         : String(fields[COLS.route]          || '').trim(),
+    routeOrdering : parseInt(fields[COLS.routeOrdering])|| 0,
+  };
+}
+
+// ─── FETCH ────────────────────────────────────────────────────────────────
+const sel = document.getElementById('routeSelect');
+
+function showMsg(icon, msg) {
+  document.getElementById('content').innerHTML =
+    `<div class="placeholder"><div class="big">${icon}</div><p>${msg}</p></div>`;
+}
+
+async function fetchSheetData() {
+  if (!SHEET_CSV_URL || SHEET_CSV_URL === 'YOUR_GOOGLE_SHEETS_CSV_URL_HERE') {
+    showMsg('⚠️', 'No sheet URL configured');
+    return;
+  }
+
+  showMsg('⏳', 'Loading…');
+
+  const isLocal  = location.protocol === 'file:';
+  const PROXY    = 'https://corsproxy.io/?';
+  const bustUrl  = SHEET_CSV_URL + '&_=' + Date.now();
+  const finalUrl = isLocal ? PROXY + encodeURIComponent(bustUrl) : bustUrl;
+
+  try {
+    const res = await fetch(finalUrl);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const text = await res.text();
+
+    const rows = parseCSV(text);
+    if (rows.length < 2) throw new Error('Sheet appears empty');
+
+    // Skip header row; skip rows with no order ID
+    allData = rows.slice(1).map(rowToObject).filter(r => r.orderNum);
+
+    if (!allData.length) {
+      showMsg('📭', 'No orders found in sheet');
+      return;
     }
 
-    function rowToObject(fields) {
-      return {
-        orderNum: fields[COLS.orderNum] || '',
-        ware: fields[COLS.ware] || '',
-        wareType: fields[COLS.wareType] || '',
-        qty: parseInt(fields[COLS.qty]) || 0,
-        supplier: fields[COLS.supplier] || '',
-        route: fields[COLS.route] || '',
-        driver: fields[COLS.driver] || '',
-        customer: fields[COLS.customer] || '',
-      };
+    // Rebuild route dropdown, preserving current selection if still valid
+    const currentRoute = sel.value;
+    while (sel.options.length > 1) sel.remove(1);
+
+    const routes = [...new Set(allData.map(r => r.route))].sort((a,b) => {
+      // Sort numerically where possible, e.g. 1,2,...,9,10,hau 1,hau 2
+      const na = parseInt(a), nb = parseInt(b);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
+      return a.localeCompare(b);
+    });
+
+    routes.forEach(r => {
+      const opt       = document.createElement('option');
+      opt.value       = r;
+      opt.textContent = `Route ${r}`;
+      sel.appendChild(opt);
+    });
+
+    // Restore selection silently if route still exists
+    if (currentRoute && routes.includes(currentRoute)) {
+      sel.value = currentRoute;
+      // Re-render current route without wiping checked state
+      renderCurrentRoute();
+    } else {
+      showMsg('🚚', 'Select your route to begin');
+      document.getElementById('statsBar').style.display   = 'none';
+      document.getElementById('summaryBox').style.display = 'none';
     }
 
-    // ─── INIT ────────────────────────────────────────────────────────────────────
-    const sel = document.getElementById('routeSelect');
+  } catch(err) {
+    console.error(err);
+    showMsg('⚠️', 'Could not load sheet — ' + err.message);
+  }
+}
 
-    function showLoadingState() {
-      document.getElementById('content').innerHTML = `
-    <div class="placeholder">
-      <div class="big">⏳</div>
-      <p>Loading sheet data…</p>
-    </div>`;
+fetchSheetData();
+
+// ─── ROUTE LOADING ────────────────────────────────────────────────────────
+function loadRoute() {
+  const route = sel.value;
+  if (!route) {
+    document.getElementById('summaryBox').style.display = 'none';
+    document.getElementById('statsBar').style.display   = 'none';
+    showMsg('🚚', 'Select your route to begin');
+    return;
+  }
+  renderCurrentRoute();
+}
+
+function renderCurrentRoute() {
+  const route  = sel.value;
+  const orders = getRouteOrders(route);
+
+  if (!orders.length) {
+    showMsg('📭', 'No orders for this route');
+    return;
+  }
+
+  document.getElementById('statsBar').style.display = 'flex';
+  updateStats(orders);
+  renderSummary(orders);
+  renderOrders(orders);
+}
+
+// Returns orders for a route, customers sorted by routeOrdering DESC
+// (highest = last delivery = goes in car first = bottom of stack)
+function getRouteOrders(route) {
+  return allData.filter(r => r.route === route);
+}
+
+// Returns customer list sorted highest routeOrdering first
+function sortedCustomers(orders) {
+  const customerMap = {};
+  orders.forEach(o => {
+    if (!customerMap[o.customer]) {
+      customerMap[o.customer] = { orders: [], maxOrdering: 0 };
     }
-
-    function showErrorState(msg) {
-      document.getElementById('content').innerHTML = `
-    <div class="placeholder">
-      <div class="big">⚠️</div>
-      <p>${msg}</p>
-    </div>`;
+    customerMap[o.customer].orders.push(o);
+    if (o.routeOrdering > customerMap[o.customer].maxOrdering) {
+      customerMap[o.customer].maxOrdering = o.routeOrdering;
     }
+  });
+  // Sort DESC: highest ordering first (last delivery, packed first, sits deepest in car)
+  return Object.entries(customerMap).sort((a,b) => b[1].maxOrdering - a[1].maxOrdering);
+}
 
-    function populateRouteDropdown() {
-      // Clear existing options except the placeholder
-      while (sel.options.length > 1) sel.remove(1);
-      const routes = [...new Set(breadOnly.map(r => r.route))].sort();
-      routes.forEach(r => {
-        const opt = document.createElement('option');
-        opt.value = r;
-        const drivers = [...new Set(breadOnly.filter(x => x.route === r).map(x => x.driver))];
-        opt.textContent = `${r}  —  ${drivers.join(', ')}`;
-        sel.appendChild(opt);
-      });
-    }
+// ─── SUMMARY (SORTING STAGE) ──────────────────────────────────────────────
+function toggleSummary() {
+  summaryOpen = !summaryOpen;
+  document.getElementById('summaryItems').classList.toggle('open', summaryOpen);
+  document.getElementById('summaryChevron').classList.toggle('open', summaryOpen);
+}
 
-    async function fetchSheetData() {
-      if (!SHEET_CSV_URL || SHEET_CSV_URL === "YOUR_GOOGLE_SHEETS_CSV_URL_HERE") {
-        showErrorState("No sheet URL set — open index.html and paste your Google Sheets CSV URL into SHEET_CSV_URL at the top of the script.");
-        return;
-      }
+function renderSummary(orders) {
+  const route       = orders[0].route;
+  const routeSummary = summaryChecked[route] || {};
 
-      showLoadingState();
+  const totals = {};
+  orders.forEach(o => { totals[o.ware] = (totals[o.ware] || 0) + o.qty; });
 
-      try {
-        // Google Sheets CSV urls need a cache-busting param so you always get fresh data
-        const url = SHEET_CSV_URL + (SHEET_CSV_URL.includes('?') ? '&' : '?') + '_=' + Date.now();
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const text = await res.text();
+  const entries   = Object.entries(totals).sort((a,b) => a[0].localeCompare(b[0]));
+  const doneCount = entries.filter(([w]) => routeSummary[w]).length;
 
-        const rows = parseCSV(text);
-        if (rows.length < 2) throw new Error("Sheet appears to be empty");
+  document.getElementById('summarySubtitle').textContent =
+    `${doneCount}/${entries.length} types sorted`;
 
-        // First row is the header — skip it
-        const dataRows = rows.slice(1);
-        const allData = dataRows.map(rowToObject).filter(r => r.orderNum); // skip blank rows
-        breadOnly = allData.filter(r => r.wareType.toLowerCase() === 'bread');
-
-        if (!breadOnly.length) {
-          showErrorState("No rows with Ware Type = 'Bread' found in the sheet.");
-          return;
-        }
-
-        populateRouteDropdown();
-        fetchStatuses();
-        document.getElementById('content').innerHTML = `
-      <div class="placeholder">
-        <div class="big">🚚</div>
-        <p>Select your route to begin</p>
-      </div>`;
-
-      } catch (err) {
-        console.error(err);
-        showErrorState("Could not load sheet. Check the URL and make sure the sheet is published to web. (" + err.message + ")");
-      }
-    }
-
-    // Load data on page open, and add a manual refresh button
-    fetchSheetData();
-
-    function toggleSummary() {
-      summaryOpen = !summaryOpen;
-      document.getElementById('summaryItems').classList.toggle('open', summaryOpen);
-      document.getElementById('summaryChevron').classList.toggle('open', summaryOpen);
-    }
-
-    function renderSummary(orders) {
-      // Aggregate total qty per unique ware name
-      const totals = {};
-      orders.forEach(o => {
-        totals[o.ware] = (totals[o.ware] || 0) + o.qty;
-      });
-
-      const route = orders.length ? orders[0].route : '';
-      const routeSummary = summaryChecked[route] || {};
-      const entries = Object.entries(totals).sort((a, b) => a[0].localeCompare(b[0]));
-      const doneCount = entries.filter(([ware]) => routeSummary[ware]).length;
-
-      document.getElementById('summarySubtitle').textContent =
-        `${doneCount}/${entries.length} types sorted`;
-
-      const box = document.getElementById('summaryItems');
-      box.innerHTML = entries.map(([ware, qty]) => {
-        const isChecked = !!routeSummary[ware];
-        const safeId = 'sum-' + ware.replace(/\s+/g, '-');
-        return `
-      <div class="summary-row ${isChecked ? 's-checked' : ''}" id="${safeId}">
+  const box = document.getElementById('summaryItems');
+  box.innerHTML = entries.map(([ware, qty]) => {
+    const isCk   = !!routeSummary[ware];
+    const safeId = 'sum-' + ware.replace(/[^a-zA-Z0-9]/g, '-');
+    return `
+      <div class="summary-row ${isCk ? 's-checked' : ''}" id="${safeId}">
         <div class="summary-checkbox-area">
-          <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleSummaryItem('${ware}')">
+          <input type="checkbox" ${isCk?'checked':''} onchange="toggleSummaryItem(${JSON.stringify(ware)})">
         </div>
         <label>
           <span class="summary-ware">${ware}</span>
           <span class="summary-qty">${qty} stk</span>
         </label>
       </div>`;
-      }).join('');
+  }).join('');
 
-      box.classList.toggle('open', summaryOpen);
-      document.getElementById('summaryChevron').classList.toggle('open', summaryOpen);
-      document.getElementById('summaryBox').style.display = 'block';
-    }
+  box.classList.toggle('open', summaryOpen);
+  document.getElementById('summaryChevron').classList.toggle('open', summaryOpen);
+  document.getElementById('summaryBox').style.display = 'block';
+}
 
-    function toggleSummaryItem(ware) {
-      const route = document.getElementById('routeSelect').value;
-      if (!summaryChecked[route]) summaryChecked[route] = {};
-      summaryChecked[route][ware] = !summaryChecked[route][ware];
-      const orders = breadOnly.filter(r => r.route === route);
-      renderSummary(orders);
-    }
-    async function fetchStatuses() {
-      if (!APPS_SCRIPT_URL) return;
-      try {
-        const res = await fetch(APPS_SCRIPT_URL + '?action=read&_=' + Date.now());
-        if (!res.ok) return;
-        Object.assign(customerStatuses, await res.json());
-        const route = document.getElementById('routeSelect').value;
-        if (route) renderOrders(breadOnly.filter(r => r.route === route));
-      } catch (err) { console.warn('Could not fetch statuses:', err); }
-    }
+function toggleSummaryItem(ware) {
+  const route = sel.value;
+  if (!summaryChecked[route]) summaryChecked[route] = {};
+  summaryChecked[route][ware] = !summaryChecked[route][ware];
+  renderSummary(getRouteOrders(route));
+}
 
-    function cycleStatus(btn) {
-      const { route, customer } = btn.dataset;
-      const key = route + '|' + customer;
-      const next = STATUS_CYCLE[(STATUS_CYCLE.indexOf(customerStatuses[key] || 'not_packed') + 1) % 3];
-      customerStatuses[key] = next;
-      renderOrders(breadOnly.filter(r => r.route === route));
-      if (APPS_SCRIPT_URL) {
-        fetch(APPS_SCRIPT_URL + '?' + new URLSearchParams({ action: 'update', route, customer, status: next }), { mode: 'no-cors' }).catch(() => {});
-      }
-    }
+// ─── ORDER LIST ───────────────────────────────────────────────────────────
+function renderOrders(orders) {
+  // Preserve scroll position — don't jump on every checkbox tap
+  const content     = document.getElementById('content');
+  const scrollY     = window.scrollY;
+  const route       = orders[0].route;
+  const routeChecked = checked[route] || {};
+  const customers   = sortedCustomers(orders);
+  const allDone     = orders.every(o => routeChecked[o.orderNum]);
 
-    function loadRoute() {
-      const route = sel.value;
-      const content = document.getElementById('content');
-      const statsBar = document.getElementById('statsBar');
+  let html = '';
 
-      if (!route) {
-        document.getElementById('summaryBox').style.display = 'none';
-        statsBar.style.display = 'none';
-        content.innerHTML = `<div class="placeholder"><div class="big">🚚</div><p>Select your route to begin</p></div>`;
-        return;
-      }
+  if (allDone && orders.length > 0) {
+    html += `<div class="all-done"><div class="icon">✅</div><p>Route complete!</p></div>`;
+  }
 
-      const orders = breadOnly.filter(r => r.route === route);
-      if (!orders.length) {
-        content.innerHTML = `<div class="placeholder"><div class="big">📭</div><p>No bread orders for this route</p></div>`;
-        return;
-      }
+  customers.forEach(([customer, {orders: custOrders}]) => {
+    const custDone    = custOrders.filter(o => routeChecked[o.orderNum]).length;
+    const allCustDone = custDone === custOrders.length;
 
-      statsBar.style.display = 'flex';
-      updateStats(orders);
-      renderSummary(orders);
-      renderOrders(orders);
-    }
-
-    function renderOrders(orders) {
-      const content = document.getElementById('content');
-      const route = orders.length ? orders[0].route : '';
-      const routeChecked = checked[route] || {};
-
-      // Group by customer, preserving order of first appearance
-      const customerMap = {};
-      orders.forEach(o => {
-        if (!customerMap[o.customer]) customerMap[o.customer] = [];
-        customerMap[o.customer].push(o);
-      });
-
-      const allDone = orders.every(o => routeChecked[o.orderNum]);
-      let html = '';
-
-      if (allDone) {
-        html += `<div class="all-done"><div class="icon">✅</div><p>Route complete!</p></div>`;
-      }
-
-      Object.entries(customerMap).forEach(([customer, custOrders]) => {
-        const custDone = custOrders.filter(o => routeChecked[o.orderNum]).length;
-        const custPending = custOrders.length - custDone;
-        const allCustDone = custDone === custOrders.length;
-        const statusKey = route + '|' + customer;
-        const custStatus = customerStatuses[statusKey] || 'not_packed';
-
-        html += `
+    html += `
       <div class="customer-group ${allCustDone ? 'cg-done' : ''}">
         <div class="customer-header">
           <span class="customer-name">${customer}</span>
-          <div class="customer-header-right">
-            <button class="status-btn status-${custStatus}"
-              data-route="${route.replace(/"/g,'&quot;')}"
-              data-customer="${customer.replace(/"/g,'&quot;')}"
-              onclick="cycleStatus(this)">${STATUS_LABELS[custStatus]}</button>
-            <span class="customer-tally ${allCustDone ? 'tally-done' : ''}">${custDone}/${custOrders.length}</span>
-          </div>
+          <span class="customer-tally ${allCustDone ? 'tally-done' : ''}">${custDone}/${custOrders.length}</span>
         </div>
         <div class="customer-orders">`;
 
-        // Pending first, done at bottom within each customer
-        const pending = custOrders.filter(o => !routeChecked[o.orderNum]);
-        const done = custOrders.filter(o => routeChecked[o.orderNum]);
-        [...pending, ...done].forEach(o => html += cardHTML(o));
+    const pending = custOrders.filter(o => !routeChecked[o.orderNum]);
+    const done    = custOrders.filter(o =>  routeChecked[o.orderNum]);
+    [...pending, ...done].forEach(o => html += cardHTML(o, routeChecked));
 
-        html += `</div></div>`;
-      });
+    html += `</div></div>`;
+  });
 
-      html += `<button class="reset-btn" onclick="resetRoute()">↺ Reset checklist</button>`;
-      content.innerHTML = html;
-    }
+  html += `<button class="reset-btn" onclick="askReset()">↺ Reset checklist</button>`;
+  content.innerHTML = html;
 
-    function cardHTML(o) {
-      const route = document.getElementById('routeSelect').value;
-      const isChecked = !!(checked[route] || {})[o.orderNum];
-      return `
-    <div class="order-card ${isChecked ? 'checked' : ''}" id="card-${o.orderNum}">
+  // Restore scroll without animation
+  window.scrollTo({ top: scrollY, behavior: 'instant' });
+}
+
+function cardHTML(o, routeChecked) {
+  const isCk = !!routeChecked[o.orderNum];
+  return `
+    <div class="order-card ${isCk ? 'checked' : ''}">
       <label>
         <div class="checkbox-area">
-          <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggle('${o.orderNum}')">
+          <input type="checkbox" ${isCk?'checked':''} onchange="toggle(${JSON.stringify(o.orderNum)})">
         </div>
         <div class="order-info">
           <div class="order-top">
@@ -969,43 +836,64 @@
             <span class="qty-badge">QTY: ${o.qty}</span>
           </div>
           <div class="order-meta">
-            <span class="meta-item"><span class="meta-label">Order</span>&nbsp;<span class="meta-value">${o.orderNum}</span></span>
-            <span class="meta-item"><span class="meta-label">Supplier</span>&nbsp;<span class="meta-value">${o.supplier}</span></span>
+            <span class="meta-item">
+              <span class="meta-label">Order</span>&nbsp;
+              <span class="meta-value">${o.orderNum}</span>
+            </span>
+            <span class="meta-item">
+              <span class="meta-label">Supplier</span>&nbsp;
+              <span class="meta-value">${o.supplier}</span>
+            </span>
           </div>
         </div>
       </label>
     </div>`;
-    }
+}
 
-    function toggle(orderNum) {
-      const route = document.getElementById('routeSelect').value;
-      if (!checked[route]) checked[route] = {};
-      checked[route][orderNum] = !checked[route][orderNum];
-      const orders = breadOnly.filter(r => r.route === route);
-      updateStats(orders);
-      renderOrders(orders);
-    }
+// ─── INTERACTIONS ─────────────────────────────────────────────────────────
+function toggle(orderNum) {
+  const route = sel.value;
+  if (!checked[route]) checked[route] = {};
+  checked[route][orderNum] = !checked[route][orderNum];
+  const orders = getRouteOrders(route);
+  updateStats(orders);
+  renderOrders(orders);
+}
 
-    function updateStats(orders) {
-      const route = orders.length ? orders[0].route : '';
-      const routeChecked = checked[route] || {};
-      const doneCount = orders.filter(o => routeChecked[o.orderNum]).length;
-      const totalQty = orders.reduce((s, o) => s + o.qty, 0);
-      document.getElementById('statTotal').textContent = orders.length;
-      document.getElementById('statDone').textContent = doneCount;
-      document.getElementById('statQty').textContent = totalQty;
-    }
+function updateStats(orders) {
+  const route        = orders[0].route;
+  const routeChecked = checked[route] || {};
+  const doneCount    = orders.filter(o => routeChecked[o.orderNum]).length;
+  const totalQty     = orders.reduce((s,o) => s + o.qty, 0);
+  document.getElementById('statTotal').textContent = orders.length;
+  document.getElementById('statDone').textContent  = doneCount;
+  document.getElementById('statQty').textContent   = totalQty;
+}
 
-    function resetRoute() {
-      const route = document.getElementById('routeSelect').value;
-      const orders = breadOnly.filter(r => r.route === route);
-      checked[route] = {};
-      summaryChecked[route] = {};
-      updateStats(orders);
-      renderSummary(orders);
-      renderOrders(orders);
-    }
-  </script>
+// ─── RESET WITH CONFIRMATION ──────────────────────────────────────────────
+function askReset() {
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+
+function closeConfirm() {
+  document.getElementById('confirmOverlay').classList.remove('open');
+}
+
+function doReset() {
+  closeConfirm();
+  const route  = sel.value;
+  const orders = getRouteOrders(route);
+  checked[route]        = {};
+  summaryChecked[route] = {};
+  updateStats(orders);
+  renderSummary(orders);
+  renderOrders(orders);
+}
+
+// Close confirm if tapping the dark backdrop
+document.getElementById('confirmOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeConfirm();
+});
+</script>
 </body>
-
 </html>
