@@ -11,7 +11,7 @@
 
 // ─── CONFIGURATION ────────────────────────────────────────────
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQtpZq0YITZ1P_7kRssEnU8JW8c-wXsq7odSN2GjcGmBsJAIrmtC0QWXjjv6tSafF_u-BJ90ZLvR5IK/pub?output=csv";
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwc9gXaLxB2eRZF3cV_cJwwn2HRhq4aVd0-YRaPl7kuUSQUqWbJzy9GFQgfEtWgriM_XQ/exec"; // paste deployed Web App URL here to enable status sync
+const FIREBASE_URL = "https://mve-bread-default-rtdb.europe-west1.firebasedatabase.app";
 
 // ─── COLUMN MAPPING (0-indexed) ───────────────────────────────
 // Matches: PSR-BREAD-2026-03-04 sheet exactly
@@ -35,7 +35,7 @@ const COLS = {
 // ─── STATE ────────────────────────────────────────────────────
 let checked        = {};   // { route: { itemId: bool } }
 let summaryChecked = {};   // { route: { ware: bool } }
-let summaryOpen    = true;
+let summaryOpen    = false;
 let summarySort    = 'qty-desc';  // 'qty-desc' = high→low  |  'qty-asc' = low→high
 let allData        = [];   // all rows parsed from sheet
 
@@ -158,15 +158,6 @@ async function fetchSheetData() {
 
 fetchSheetData();
 
-// ─── AUTO-REFRESH ─────────────────────────────────────────────
-// Poll statuses every 30 seconds so other drivers' changes appear automatically.
-setInterval(() => {
-  if (sel.value) {
-    console.log('[BreadRun] Auto-poll: fetching statuses…');
-    fetchStatuses();
-  }
-}, 30000);
-
 // Immediately sync when the user returns to this tab.
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && sel.value) {
@@ -195,40 +186,41 @@ function applyStatusRows(rows) {
   });
 }
 
-// Fetches individual item statuses from the Apps Script Web App and re-renders.
-// Silently no-ops if APPS_SCRIPT_URL is not set.
+// Fetches individual item statuses from Firebase and re-renders.
+// Silently no-ops if FIREBASE_URL is not set.
 async function fetchStatuses() {
-  if (!APPS_SCRIPT_URL) return;
-  console.log('[BreadRun] Fetching item statuses from Apps Script…');
+  if (!FIREBASE_URL) return;
+  console.log('[BreadRun] Fetching item statuses from Firebase…');
   try {
-    const res  = await fetch(APPS_SCRIPT_URL);
+    const res  = await fetch(`${FIREBASE_URL}/statuses.json`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const rows = await res.json();
-    console.log(`[BreadRun] Status fetch returned ${rows.length} rows`);
-    applyStatusRows(rows);
+    const data = await res.json();
+    if (data) {
+      const rows = Object.entries(data).map(([key, val]) => ({
+        orderNum: decodeURIComponent(key),
+        ...val,
+      }));
+      applyStatusRows(rows);
+    }
     if (sel.value) renderCurrentRoute();
   } catch (err) {
     console.warn('[BreadRun] Could not load statuses:', err.message);
   }
 }
 
-// Posts an individual item status to the Apps Script Web App.
-// Returns fresh rows from the POST response, or null on failure.
+// Writes an individual item status to Firebase via PUT.
 async function postStatus({ orderNum, route, customer, status }) {
-  if (!APPS_SCRIPT_URL) return null;
+  if (!FIREBASE_URL) return;
+  const key = encodeURIComponent(orderNum);
   console.log(`[BreadRun] POST status — route=${route} customer="${customer}" item=${orderNum} status=${status}`);
   try {
-    const res  = await fetch(APPS_SCRIPT_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ orderNum, route, customer, status }),
+    await fetch(`${FIREBASE_URL}/statuses/${key}.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, route, customer }),
     });
-    const json = await res.json();
-    console.log(`[BreadRun] POST response — action=${json.action || json.error || '?'}`);
-    return json.rows || null;
   } catch (err) {
     console.warn('[BreadRun] Could not save status:', err.message);
-    return null;
   }
 }
 
@@ -446,26 +438,21 @@ document.getElementById('content').addEventListener('change', async e => {
 
   // POST individual item state
   const changedItem = orders.find(o => o.itemId === itemId);
-  if (changedItem && APPS_SCRIPT_URL) {
+  if (changedItem && FIREBASE_URL) {
     const isNowChecked = !!checked[route][itemId];
     console.log(`[BreadRun] Checkbox toggled — route=${route} customer="${changedItem.customer}" ware="${changedItem.ware}" → ${isNowChecked ? 'checked' : 'unchecked'}`);
 
-    // After a customer is fully done, show overlay and do a single POST that
-    // returns fresh rows — one round trip instead of POST + separate GET.
+    // After a customer is fully done, show overlay, PUT then GET to pick up
+    // any other drivers' changes before re-rendering.
     const custOrders  = orders.filter(o => o.customer === changedItem.customer);
     const allCustDone = custOrders.every(o => checked[route][o.itemId]);
     if (allCustDone) {
       const syncOverlay = document.getElementById('syncOverlay');
       syncOverlay.classList.add('open');
-      const rows = await postStatus({ orderNum: changedItem.itemKey, route, customer: changedItem.customer, status: isNowChecked ? 'checked' : 'unchecked' });
-      if (rows) {
-        applyStatusRows(rows);
-        renderCurrentRoute();
-      } else {
-        await fetchStatuses(); // fallback if POST response missing rows
-      }
+      await postStatus({ orderNum: changedItem.itemKey, route, customer: changedItem.customer, status: isNowChecked ? 'checked' : 'unchecked' });
+      await fetchStatuses(); // GET after PUT — no race, picks up other drivers' changes
       syncOverlay.classList.remove('open');
-      return; // renderCurrentRoute() above already called updateStats + renderOrders
+      return; // fetchStatuses() → renderCurrentRoute() handles the re-render
     } else {
       postStatus({ orderNum: changedItem.itemKey, route, customer: changedItem.customer, status: isNowChecked ? 'checked' : 'unchecked' });
     }
