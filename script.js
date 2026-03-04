@@ -11,7 +11,7 @@
 
 // ─── CONFIGURATION ────────────────────────────────────────────
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQtpZq0YITZ1P_7kRssEnU8JW8c-wXsq7odSN2GjcGmBsJAIrmtC0QWXjjv6tSafF_u-BJ90ZLvR5IK/pub?output=csv";
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwc9gXaLxB2eRZF3cV_cJwwn2HRhq4aVd0-YRaPl7kuUSQUqWbJzy9GFQgfEtWgriM_XQ/exe"; // paste deployed Web App URL here to enable status sync
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwc9gXaLxB2eRZF3cV_cJwwn2HRhq4aVd0-YRaPl7kuUSQUqWbJzy9GFQgfEtWgriM_XQ/exec"; // paste deployed Web App URL here to enable status sync
 
 // ─── COLUMN MAPPING (0-indexed) ───────────────────────────────
 // Matches: PSR-BREAD-2026-03-04 sheet exactly
