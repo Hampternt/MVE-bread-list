@@ -1,0 +1,89 @@
+// ═══════════════════════════════════════════════════════════════
+// MVE Bread — CustomerStatus Web App
+// Code.gs
+// ─────────────────────────────────────────────────────────────
+// Bound to spreadsheet: 1fHSxyKIDYyBRqiDmUm2BEe2GmDGObVrDW7pzJEwVSKE
+//
+// Deploy as Web App:
+//   Script Editor → Deploy → New deployment → Web App
+//   Execute as: Me
+//   Access: Anyone
+//
+// After deploying, paste the generated URL into APPS_SCRIPT_URL in script.js
+// ═══════════════════════════════════════════════════════════════
+
+var SHEET_NAME = 'CustomerStatus';
+var HEADERS    = ['orderNum', 'route', 'customer', 'status', 'timestamp'];
+
+// ─── doGet ─────────────────────────────────────────────────────
+// Returns all rows from CustomerStatus tab as a JSON array:
+//   [{ orderNum, route, customer, status }, ...]
+function doGet(e) {
+  var sheet = getOrCreateSheet();
+  var data  = sheet.getDataRange().getValues();
+
+  // If only header row (or empty), return empty array
+  if (data.length < 2) return jsonResponse([]);
+
+  var rows = data.slice(1)
+    .map(function(row) {
+      return {
+        orderNum  : String(row[0]),
+        route     : String(row[1]),
+        customer  : String(row[2]),
+        status    : String(row[3]),
+        timestamp : String(row[4])
+      };
+    })
+    .filter(function(r) { return r.orderNum && r.status; });
+
+  return jsonResponse(rows);
+}
+
+// ─── doPost ────────────────────────────────────────────────────
+// Receives: { orderNum, route, customer, status } JSON body
+// Finds existing row by orderNum and updates it, or appends new row.
+function doPost(e) {
+  var payload  = JSON.parse(e.postData.contents);
+  var orderNum = String(payload.orderNum);
+  var route    = String(payload.route    || '');
+  var customer = String(payload.customer || '');
+  var status   = String(payload.status   || '');
+
+  if (!orderNum || !status) {
+    return jsonResponse({ ok: false, error: 'Missing orderNum or status' });
+  }
+
+  var sheet   = getOrCreateSheet();
+  var allRows = sheet.getDataRange().getValues();
+
+  // Search for existing row matching orderNum (rows start at index 1 = row 2 in sheet)
+  for (var i = 1; i < allRows.length; i++) {
+    if (String(allRows[i][0]) === orderNum) {
+      sheet.getRange(i + 1, 4).setValue(status);
+      sheet.getRange(i + 1, 5).setValue(new Date().toISOString());
+      return jsonResponse({ ok: true, action: 'updated' });
+    }
+  }
+
+  // No existing row — append new
+  sheet.appendRow([orderNum, route, customer, status, new Date().toISOString()]);
+  return jsonResponse({ ok: true, action: 'inserted' });
+}
+
+// ─── Helpers ───────────────────────────────────────────────────
+function getOrCreateSheet() {
+  var ss    = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAME);
+    sheet.appendRow(HEADERS);
+  }
+  return sheet;
+}
+
+function jsonResponse(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}

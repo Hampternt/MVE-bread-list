@@ -304,6 +304,24 @@ select:focus { outline: none; border-color: var(--accent); }
 }
 .customer-tally.tally-done { color: var(--check); background: #1a2a1a; }
 
+/* ── CUSTOMER GROUP — IN PROGRESS ───────────────────────────── */
+.customer-group.cg-in-progress { border-color: var(--accent-dim); }
+
+.cg-in-progress .customer-header {
+  background: #2a2700;
+  border-bottom-color: var(--accent-dim);
+}
+
+/* Amber dot indicator shown next to customer name */
+.status-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  align-self: center;
+}
+
 /* ── ORDER CARDS ────────────────────────────────────────────── */
 .order-card {
   background: var(--surface);

@@ -11,7 +11,7 @@
 
 // ─── CONFIGURATION ────────────────────────────────────────────
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQtpZq0YITZ1P_7kRssEnU8JW8c-wXsq7odSN2GjcGmBsJAIrmtC0QWXjjv6tSafF_u-BJ90ZLvR5IK/pub?output=csv";
-const APPS_SCRIPT_URL = ""; // reserved for future live Google Sheets write-back
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyf8NVZhOHBZYRRjCm0CBqdoWYVSnukIyCvdxzNT5_QNox1_umWlzyPHeIneu6yW2jx/exec"; // paste deployed Web App URL here to enable status sync
 
 // ─── COLUMN MAPPING (0-indexed) ───────────────────────────────
 // Matches: PSR-BREAD-2026-03-04 sheet exactly
@@ -33,8 +33,9 @@ const COLS = {
 };
 
 // ─── STATE ────────────────────────────────────────────────────
-let checked        = {};   // { route: { orderNum: bool } }
+let checked        = {};   // { route: { itemId: bool } }
 let summaryChecked = {};   // { route: { ware: bool } }
+let customerStatus = {};   // { route: { orderNum: 'in_progress'|'done' } } — from Google Sheets
 let summaryOpen    = true;
 let summarySort    = 'qty-desc';  // 'qty-desc' = high→low  |  'qty-asc' = low→high
 let allData        = [];   // all rows parsed from sheet
@@ -141,6 +142,8 @@ async function fetchSheetData() {
       document.getElementById('summaryBox').style.display = 'none';
     }
 
+    fetchStatuses(); // async — re-renders once statuses arrive; no-op if URL not set
+
   } catch (err) {
     console.error(err);
     showMsg('⚠️', 'Could not load sheet — ' + err.message);
@@ -148,6 +151,45 @@ async function fetchSheetData() {
 }
 
 fetchSheetData();
+
+// ─── STATUS SYNC ──────────────────────────────────────────────
+// Fetches customer statuses from the Apps Script Web App and re-renders.
+// Silently no-ops if APPS_SCRIPT_URL is not set.
+async function fetchStatuses() {
+  if (!APPS_SCRIPT_URL) return;
+  try {
+    const res = await fetch(APPS_SCRIPT_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const rows = await res.json();
+
+    // Only keep statuses for order numbers that exist in the current sheet data
+    const validOrderNums = new Set(allData.map(r => r.orderNum));
+    customerStatus = {};
+    rows.forEach(r => {
+      if (!validOrderNums.has(r.orderNum)) return; // stale entry — new run, ignore
+      if (!customerStatus[r.route]) customerStatus[r.route] = {};
+      customerStatus[r.route][r.orderNum] = r.status;
+    });
+
+    if (sel.value) renderCurrentRoute();
+  } catch (err) {
+    console.warn('Could not load statuses:', err.message);
+  }
+}
+
+// Posts a customer status update to the Apps Script Web App.
+async function postStatus({ orderNum, route, customer, status }) {
+  if (!APPS_SCRIPT_URL) return;
+  try {
+    await fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderNum, route, customer, status }),
+    });
+  } catch (err) {
+    console.warn('Could not save status:', err.message);
+  }
+}
 
 // ─── ROUTE LOADING ────────────────────────────────────────────
 function loadRoute() {
@@ -283,14 +325,19 @@ function renderOrders(orders) {
 
   // ─── CUSTOMER GROUP ──────────────────────────────────────────
   customers.forEach(([customer, { orders: custOrders }]) => {
-    const custDone    = custOrders.filter(o => routeChecked[o.itemId]).length;
-    const allCustDone = custDone === custOrders.length;
+    const custDone     = custOrders.filter(o => routeChecked[o.itemId]).length;
+    const allCustDone  = custDone === custOrders.length;
+    const orderNum     = custOrders[0].orderNum;
+    const remoteStatus = (customerStatus[route] || {})[orderNum];
+    const effectiveDone = allCustDone || remoteStatus === 'done';
+    const inProgress    = !effectiveDone && (custDone > 0 || remoteStatus === 'in_progress');
 
     html += `
-      <div class="customer-group ${allCustDone ? 'cg-done' : ''}">
+      <div class="customer-group ${effectiveDone ? 'cg-done' : inProgress ? 'cg-in-progress' : ''}">
         <div class="customer-header">
           <span class="customer-name">${customer}</span>
-          <span class="customer-tally ${allCustDone ? 'tally-done' : ''}">${custDone}/${custOrders.length}</span>
+          ${inProgress ? '<span class="status-pip"></span>' : ''}
+          <span class="customer-tally ${effectiveDone ? 'tally-done' : ''}">${custDone}/${custOrders.length}</span>
         </div>
         <div class="customer-orders">`;
 
@@ -348,7 +395,26 @@ document.getElementById('content').addEventListener('change', e => {
   const route  = sel.value;
   if (!checked[route]) checked[route] = {};
   checked[route][itemId] = !checked[route][itemId];
-  const orders = getRouteOrders(route);
+
+  const orders       = getRouteOrders(route);
+  const routeChecked = checked[route];
+
+  // Determine new customer status and POST it
+  const changedItem = orders.find(o => o.itemId === itemId);
+  if (changedItem && APPS_SCRIPT_URL) {
+    const custOrders   = orders.filter(o => o.customer === changedItem.customer);
+    const checkedCount = custOrders.filter(o => routeChecked[o.itemId]).length;
+    const newStatus    = checkedCount === custOrders.length ? 'done'
+                       : checkedCount > 0                  ? 'in_progress'
+                       : null;
+    if (newStatus) {
+      const orderNum = custOrders[0].orderNum;
+      if (!customerStatus[route]) customerStatus[route] = {};
+      customerStatus[route][orderNum] = newStatus;
+      postStatus({ orderNum, route, customer: changedItem.customer, status: newStatus });
+    }
+  }
+
   updateStats(orders);
   renderOrders(orders);
 });
