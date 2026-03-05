@@ -457,6 +457,13 @@ function renderOrders(orders) {
 }
 
 // ─── ORDER CARD ───────────────────────────────────────────────
+function supplierIconHTML(supplier) {
+  const s = supplier.toLowerCase();
+  if (s.includes('bakehuset')) return `<img class="supplier-icon" src="logo.svg" alt="Bakehuset">`;
+  if (s.includes('sandnes'))   return `<img class="supplier-icon" src="sandnes%20bakeri.png" alt="Sandnes Bakeri">`;
+  return '';
+}
+
 // orderNum is stored in data-order (HTML-encoded) — no inline JS quoting needed.
 function cardHTML(o, routeChecked) {
   const isCk = !!routeChecked[o.itemId];
@@ -470,6 +477,7 @@ function cardHTML(o, routeChecked) {
           <div class="order-top">
             <span class="ware-name">${o.ware}</span>
             <span class="qty-badge">QTY: ${o.qty}</span>
+            ${supplierIconHTML(o.supplier)}
           </div>
           <div class="order-meta">
             <span class="meta-item">
