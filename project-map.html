@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bread Run — How It Works</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #0e0e0c;
+  --panel:   #141412;
+  --surface: #1c1c18;
+  --border:  #2a2a24;
+  --yellow:  #f0d030;
+  --green:   #3ddc84;
+  --blue:    #5aadff;
+  --red:     #ff6060;
+  --orange:  #ff9944;
+  --purple:  #c084ff;
+  --muted:   #555550;
+  --dim:     #888878;
+  --text:    #dedad0;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  min-height: 100vh;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 48px 24px 96px;
+}
+
+h1 {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: clamp(48px, 8vw, 96px);
+  letter-spacing: 0.05em;
+  color: var(--yellow);
+  line-height: 1;
+}
+
+.tagline {
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-top: 6px;
+  margin-bottom: 28px;
+}
+
+.intro-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 60px;
+}
+
+.intro-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 20px;
+}
+
+.intro-card .label {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.intro-card .value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.intro-card .detail {
+  font-size: 10px;
+  color: #555;
+  line-height: 1.6;
+}
+
+/* SECTION */
+.section { margin-top: 64px; }
+
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.section-icon {
+  font-size: 24px;
+  width: 52px;
+  height: 52px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.section-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 32px;
+  letter-spacing: 0.08em;
+  color: var(--text);
+  line-height: 1;
+}
+
+.section-sub {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+
+.pill {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 20px;
+  border: 1px solid;
+}
+
+.pill.y { color: var(--yellow); border-color: #3a3000; background: #1a1600; }
+.pill.g { color: var(--green);  border-color: #004422; background: #001a0a; }
+.pill.b { color: var(--blue);   border-color: #003060; background: #001020; }
+.pill.o { color: var(--orange); border-color: #4a2800; background: #1a0e00; }
+.pill.p { color: var(--purple); border-color: #3a1060; background: #14001e; }
+.pill.m { color: var(--muted);  border-color: #2a2a20; background: #141410; }
+.pill.r { color: var(--red);    border-color: #3a0000; background: #140000; }
+
+/* SYSTEM MAP */
+.sys-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.sys-node {
+  background: var(--panel);
+  border: 2px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.sys-node.active-y { border-color: #3a3000; }
+.sys-node.active-g { border-color: #003020; }
+.sys-node.active-b { border-color: #003060; }
+
+.sys-head {
+  padding: 14px 16px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.active-y .sys-head { background: #1a1400; }
+.active-g .sys-head { background: #001408; }
+.active-b .sys-head { background: #001020; }
+
+.sys-icon { font-size: 22px; flex-shrink: 0; }
+
+.sys-name {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  line-height: 1.1;
+}
+
+.active-y .sys-name { color: var(--yellow); }
+.active-g .sys-name { color: var(--green);  }
+.active-b .sys-name { color: var(--blue);   }
+
+.sys-url { font-size: 8px; color: #444; letter-spacing: 0.05em; margin-top: 2px; }
+
+.sys-body { padding: 14px 16px; }
+
+.sys-role { font-size: 11px; color: var(--dim); line-height: 1.7; margin-bottom: 12px; }
+
+.sys-ops { display: flex; flex-direction: column; gap: 5px; }
+
+.op {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 9px;
+  color: #555;
+  line-height: 1.5;
+}
+
+.op-verb {
+  font-weight: 700;
+  font-size: 8px;
+  padding: 2px 5px;
+  border-radius: 2px;
+  letter-spacing: 0.08em;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.op-verb.get  { background: #002010; color: var(--green);  border: 1px solid #004020; }
+.op-verb.put  { background: #001020; color: var(--blue);   border: 1px solid #002040; }
+.op-verb.del  { background: #200010; color: var(--red);    border: 1px solid #400020; }
+.op-verb.pat  { background: #0e001a; color: var(--purple); border: 1px solid #200040; }
+.op-verb.pub  { background: #1a1000; color: var(--yellow); border: 1px solid #302000; }
+.op-verb.srv  { background: #1a0a00; color: var(--orange); border: 1px solid #301400; }
+
+/* FIREBASE DETAIL */
+.firebase-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.fb-node {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.fb-head {
+  padding: 10px 14px;
+  background: #100000;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fb-path { font-size: 12px; font-weight: 700; color: var(--orange); letter-spacing: 0.04em; }
+
+.fb-badge {
+  margin-left: auto;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.fb-badge.both  { background: #0a0a00; color: var(--yellow); border: 1px solid #2a2000; }
+
+.fb-body { padding: 12px 14px; }
+
+.fb-schema {
+  font-size: 10px;
+  color: #555;
+  line-height: 1.8;
+}
+
+.fb-schema .k  { color: var(--orange); }
+.fb-schema .v  { color: var(--blue); }
+.fb-schema .c  { color: #444; font-style: italic; }
+
+.fb-desc {
+  font-size: 10px;
+  color: var(--dim);
+  margin-top: 10px;
+  line-height: 1.7;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+/* CARD ANATOMY */
+.anatomy-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.mock-card {
+  background: var(--surface);
+  border-left: 4px solid var(--yellow);
+  border-radius: 0 6px 6px 0;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.mock-card.done { border-left-color: var(--green); opacity: 0.75; }
+
+.mock-inner {
+  display: flex;
+  align-items: stretch;
+  min-height: 70px;
+}
+
+.mock-check {
+  width: 52px;
+  background: #202020;
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.mock-info { padding: 12px 14px; flex: 1; }
+
+.mock-ware {
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.mock-card.done .mock-ware { text-decoration: line-through; color: #555; }
+
+.mock-qty {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--yellow);
+  color: #111;
+  padding: 2px 7px;
+  border-radius: 2px;
+  font-family: 'Space Mono', monospace;
+}
+
+.mock-card.done .mock-qty { background: #333; color: #555; }
+
+.mock-meta {
+  font-size: 10px;
+  color: #555;
+  font-family: 'Space Mono', monospace;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mock-alts { font-size: 10px; color: #555; margin-top: 4px; }
+
+.mock-logo {
+  font-size: 9px;
+  font-weight: 700;
+  color: #888;
+  background: #222;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+.anatomy-labels {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: flex-start;
+  padding-top: 4px;
+}
+
+.anat-row { display: flex; align-items: flex-start; gap: 10px; }
+
+.anat-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.anat-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+
+.anat-desc { font-size: 10px; color: #555; line-height: 1.5; }
+
+/* SORTING */
+.sort-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.sort-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.sort-head {
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border);
+}
+
+.sort-card.s1 .sort-head { background: #1a1400; color: var(--yellow); }
+.sort-card.s2 .sort-head { background: #001408; color: var(--green); }
+.sort-card.s3 .sort-head { background: #0a0018; color: var(--purple); }
+.sort-card.s4 .sort-head { background: #0e0020; color: var(--blue); }
+
+.sort-body { padding: 14px 16px; font-size: 10px; color: var(--dim); line-height: 1.8; }
+
+.sort-example {
+  margin-top: 12px;
+  border: 1px solid #1e1e18;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.sort-row {
+  padding: 7px 10px;
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #1a1a14;
+  letter-spacing: 0.04em;
+}
+
+.sort-row:last-child { border-bottom: none; }
+.sort-row.hi  { background: #001a08; }
+.sort-row.done { opacity: 0.45; }
+.sort-row.hdr { background: #141410; }
+
+.sort-row-name { color: var(--text); font-weight: 700; }
+.sort-row-num  { color: var(--muted); font-size: 8px; }
+
+/* SYNC TABLE */
+.sync-table {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.sync-row {
+  display: grid;
+  grid-template-columns: 200px 110px 1fr;
+  border-bottom: 1px solid #1a1a14;
+}
+.sync-row:last-child { border-bottom: none; }
+.sync-row.hdr { background: #141410; }
+
+.sync-cell {
+  padding: 11px 16px;
+  font-size: 10px;
+  color: #555;
+  border-right: 1px solid #1a1a14;
+  line-height: 1.5;
+}
+.sync-cell:last-child { border-right: none; }
+.sync-row.hdr .sync-cell {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+.sync-cell.trigger { color: var(--text); font-weight: 700; }
+.sync-cell.method  { display: flex; align-items: flex-start; gap: 5px; flex-wrap: wrap; padding-top: 9px; }
+
+/* FILES */
+.files-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.file {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+}
+
+.file-name {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+
+.file.y .file-name { color: var(--yellow); }
+.file.g .file-name { color: var(--green);  }
+.file.b .file-name { color: var(--blue);   }
+.file.o .file-name { color: var(--orange); }
+.file.p .file-name { color: var(--purple); }
+.file.m .file-name { color: var(--muted);  }
+
+.file-role {
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 2px;
+  display: inline-block;
+  margin-bottom: 10px;
+}
+
+.file.y .file-role { background: #1a1400; color: #888820; }
+.file.g .file-role { background: #001408; color: var(--green); }
+.file.b .file-role { background: #001020; color: var(--blue); }
+.file.o .file-role { background: #140800; color: var(--orange); }
+.file.p .file-role { background: #0e0018; color: var(--purple); }
+.file.m .file-role { background: #141410; color: var(--muted); }
+
+.file-desc { font-size: 10px; color: #555; line-height: 1.6; }
+
+.callout {
+  border: 1px solid;
+  border-radius: 6px;
+  padding: 14px 16px;
+  margin-top: 14px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.callout.warn { border-color: #3a2000; background: #100a00; }
+.callout.info { border-color: #001a30; background: #000810; }
+
+.callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
+
+.callout-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.callout.warn .callout-title { color: var(--orange); }
+.callout.info .callout-title { color: var(--blue); }
+
+.callout-body { font-size: 10px; color: #666; line-height: 1.7; }
+.callout code { background: #1e1e18; padding: 1px 5px; border-radius: 2px; color: #aaa; font-size: 9px; }
+
+@media (max-width: 700px) {
+  .intro-row, .sys-grid, .firebase-grid,
+  .anatomy-grid, .sort-grid, .files-grid { grid-template-columns: 1fr; }
+  .sync-row { grid-template-columns: 1fr 90px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>Bread Run</h1>
+  <div class="tagline">How the app works — staff &amp; developer overview · March 2026</div>
+
+  <div class="intro-row">
+    <div class="intro-card">
+      <div class="label">Live URL</div>
+      <div class="value">mvebread.dblo.net</div>
+      <div class="detail">GitHub Pages · Push to main → live in seconds · No server, no build step, no install</div>
+    </div>
+    <div class="intro-card">
+      <div class="label">What it does</div>
+      <div class="value">Mobile packing checklist for bread deliveries</div>
+      <div class="detail">Staff select their route, see all customer orders grouped and sorted in van-loading order, tick items as they pack. Changes sync between phones in real time via Firebase.</div>
+    </div>
+  </div>
+
+  <!-- ══ 2. SYSTEM MAP ══ -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-icon">🗺️</div>
+      <div>
+        <div class="section-title">System Map</div>
+        <div class="section-sub">What talks to what and how</div>
+      </div>
+    </div>
+
+    <div class="sys-grid">
+
+      <div class="sys-node active-y">
+        <div class="sys-head">
+          <div class="sys-icon">📊</div>
+          <div>
+            <div class="sys-name">Google Sheets</div>
+            <div class="sys-url">Published as CSV · Read-only from app</div>
+          </div>
+        </div>
+        <div class="sys-body">
+          <div class="sys-role">Source of truth for all order data. Office staff manage orders here. Published as a public CSV feed. The app reads it but never writes back to it.</div>
+          <div class="sys-ops">
+            <div class="op"><span class="op-verb pub">PUB</span>File → Share → Publish to web → CSV</div>
+            <div class="op"><span class="op-verb get">GET</span>Fetched on load, tab focus, and Refresh tap</div>
+            <div class="op"><span class="op-verb get">GET</span>Cache-busted with <code style="font-size:8px;color:#777">?_=timestamp</code> every time</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sys-node active-b">
+        <div class="sys-head">
+          <div class="sys-icon">🔥</div>
+          <div>
+            <div class="sys-name">Firebase RTDB</div>
+            <div class="sys-url">mve-bread-default-rtdb.europe-west1</div>
+          </div>
+        </div>
+        <div class="sys-body">
+          <div class="sys-role">Stores which items are ticked so multiple phones stay in sync. No authentication — open access validated by Firebase rules that check the data shape.</div>
+          <div class="sys-ops">
+            <div class="op"><span class="op-verb get">GET</span>/statuses.json — all checked states on load</div>
+            <div class="op"><span class="op-verb put">PUT</span>/statuses/{key} — one item ticked</div>
+            <div class="op"><span class="op-verb del">DEL</span>/statuses/{key} — one item un-ticked</div>
+            <div class="op"><span class="op-verb pat">PAT</span>/statuses — batch null on route reset</div>
+            <div class="op"><span class="op-verb put">PUT</span>/lastModified — timestamp on every write</div>
+            <div class="op"><span class="op-verb get">GET</span>/lastModified — polled every 15 s</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sys-node active-g">
+        <div class="sys-head">
+          <div class="sys-icon">📱</div>
+          <div>
+            <div class="sys-name">Driver's Phone</div>
+            <div class="sys-url">Any browser · mvebread.dblo.net</div>
+          </div>
+        </div>
+        <div class="sys-body">
+          <div class="sys-role">Just a browser — no app to install. Can be saved to home screen for an app-like experience. All state lives in memory; a page refresh re-fetches everything from scratch.</div>
+          <div class="sys-ops">
+            <div class="op"><span class="op-verb srv">HOST</span>Static files served from GitHub Pages</div>
+            <div class="op"><span class="op-verb get">GET</span>Sheet CSV on load + Refresh</div>
+            <div class="op"><span class="op-verb get">GET</span>Firebase statuses alongside sheet load</div>
+            <div class="op"><span class="op-verb put">PUT</span>Firebase on every checkbox change</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="margin-top:14px">
+      <div class="firebase-grid">
+
+        <div class="fb-node">
+          <div class="fb-head">
+            <div class="fb-path">/statuses/{key}</div>
+            <span class="fb-badge both">Read + Write</span>
+          </div>
+          <div class="fb-body">
+            <div class="fb-schema">
+              <div><span class="c">// key = encodeURIComponent(itemKey)</span></div>
+              <div><span class="c">// itemKey = "orderNum|wareName"</span></div>
+              <div><span class="k">"1000620628|Barnehagebrødet"</span>: {</div>
+              <div>&nbsp;&nbsp;<span class="k">status</span>: <span class="v">"checked"</span>,</div>
+              <div>&nbsp;&nbsp;<span class="k">route</span>:  <span class="v">"3"</span>,</div>
+              <div>&nbsp;&nbsp;<span class="k">customer</span>: <span class="v">"KUEHNE + NAGEL AS"</span></div>
+              <div>}</div>
+              <div style="margin-top:8px"><span class="c">// Sorting Stage entries use SUMMARY| prefix:</span></div>
+              <div><span class="k">"SUMMARY|3|Barnehagebrødet"</span>: {</div>
+              <div>&nbsp;&nbsp;<span class="k">status</span>: <span class="v">"checked"</span>,</div>
+              <div>&nbsp;&nbsp;<span class="k">route</span>: <span class="v">"3"</span>,</div>
+              <div>&nbsp;&nbsp;<span class="k">customer</span>: <span class="v">""</span></div>
+              <div>}</div>
+            </div>
+            <div class="fb-desc">Order items and Sorting Stage items share the same bucket, distinguished by the SUMMARY| prefix. Keys are URL-encoded so product names with special characters are safe.</div>
+          </div>
+        </div>
+
+        <div class="fb-node">
+          <div class="fb-head">
+            <div class="fb-path">/lastModified</div>
+            <span class="fb-badge both">Read + Write</span>
+          </div>
+          <div class="fb-body">
+            <div class="fb-schema">
+              <div><span class="c">// A single Unix timestamp (ms)</span></div>
+              <div><span class="v">1709650834291</span></div>
+              <br>
+              <div><span class="c">// Written after every PUT, DELETE, PATCH</span></div>
+              <br>
+              <div><span class="c">// App polls this every 15 seconds.</span></div>
+              <div><span class="c">// Compares to lastKnownModified in memory.</span></div>
+              <div><span class="c">// Only fetches full /statuses if changed.</span></div>
+            </div>
+            <div class="fb-desc">Efficient multi-device sync. Instead of fetching all statuses every 15 s (heavy), the app reads this single tiny number. A full sync only fires when something actually changed on another device.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 3. CARD ANATOMY ══ -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-icon">🃏</div>
+      <div>
+        <div class="section-title">Order Card Anatomy</div>
+        <div class="section-sub">What each part of a card means</div>
+      </div>
+    </div>
+
+    <div class="anatomy-grid">
+      <div>
+        <div style="margin-bottom:8px;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted)">Unchecked</div>
+        <div class="mock-card">
+          <div class="mock-inner">
+            <div class="mock-check">☐</div>
+            <div class="mock-info">
+              <div class="mock-ware">
+                Barnehagebrødet 750g
+                <span class="mock-qty">QTY: 12</span>
+                <span class="mock-logo">🍞 Bakehuset</span>
+              </div>
+              <div class="mock-meta">
+                <span>ORDER 1000620628</span>
+                <span>SUPPLIER bakehuset</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;margin-bottom:8px;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted)">Checked — sinks to bottom</div>
+        <div class="mock-card done">
+          <div class="mock-inner">
+            <div class="mock-check" style="color:var(--green)">✓</div>
+            <div class="mock-info">
+              <div class="mock-ware">
+                Barnehagebrødet 750g
+                <span class="mock-qty">QTY: 12</span>
+              </div>
+              <div class="mock-meta" style="color:#333">
+                <span>ORDER 1000620628</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;margin-bottom:8px;font-size:9px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted)">With "Accepts alternatives" flag</div>
+        <div class="mock-card">
+          <div class="mock-inner">
+            <div class="mock-check">☐</div>
+            <div class="mock-info">
+              <div class="mock-ware">
+                Grovbrød 750g
+                <span class="mock-qty">QTY: 4</span>
+              </div>
+              <div class="mock-meta"><span>ORDER 1000620631</span></div>
+              <div class="mock-alts">⇌ Accepts alternatives</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anatomy-labels">
+        <div class="anat-row">
+          <div class="anat-dot" style="background:var(--yellow)"></div>
+          <div>
+            <div class="anat-title" style="color:var(--yellow)">Bread name</div>
+            <div class="anat-desc">Full product name from sheet col 3. The main thing you're packing. Struck through and greyed when checked.</div>
+          </div>
+        </div>
+        <div class="anat-row">
+          <div class="anat-dot" style="background:var(--yellow)"></div>
+          <div>
+            <div class="anat-title" style="color:var(--yellow)">QTY badge</div>
+            <div class="anat-desc">How many units for this order line. Yellow when pending, grey when checked.</div>
+          </div>
+        </div>
+        <div class="anat-row">
+          <div class="anat-dot" style="background:var(--orange)"></div>
+          <div>
+            <div class="anat-title" style="color:var(--orange)">Supplier logo</div>
+            <div class="anat-desc">Bakehuset (logo.svg) or Sandnes Bakeri (sandnes bakeri.png). Shown as an image on the card. Fades to 35% opacity when checked.</div>
+          </div>
+        </div>
+        <div class="anat-row">
+          <div class="anat-dot" style="background:var(--muted)"></div>
+          <div>
+            <div class="anat-title" style="color:var(--muted)">Order number + Supplier text</div>
+            <div class="anat-desc">Reference info shown in small text. Not needed for packing — just useful if there's a query about a specific order.</div>
+          </div>
+        </div>
+        <div class="anat-row">
+          <div class="anat-dot" style="background:var(--muted)"></div>
+          <div>
+            <div class="anat-title" style="color:var(--muted)">Accepts alternatives</div>
+            <div class="anat-desc">Only appears if sheet col 13 = TRUE. Means you can swap to an equivalent product if the exact one isn't in stock.</div>
+          </div>
+        </div>
+        <div class="anat-row">
+          <div class="anat-dot" style="background:var(--green)"></div>
+          <div>
+            <div class="anat-title" style="color:var(--green)">Checked state</div>
+            <div class="anat-desc">Green left border + dark green background + strikethrough. Card moves to bottom of customer section. Saved to Firebase immediately on tap.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 4. SORTING LOGIC ══ -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-icon">📦</div>
+      <div>
+        <div class="section-title">Sorting &amp; Display Logic</div>
+        <div class="section-sub">How the app decides what goes where</div>
+      </div>
+    </div>
+
+    <div class="sort-grid">
+
+      <div class="sort-card s1">
+        <div class="sort-head">Customer order — van loading (LIFO)</div>
+        <div class="sort-body">
+          Customers sorted by <strong>routeOrdering</strong> (sheet col 12), highest first. Highest = last delivery stop, packed first, deepest in van. Lowest = first stop, packed last, by the doors.
+          Customer positions <strong>never move</strong> while you're working — only their styling changes when done.
+          <div class="sort-example">
+            <div class="sort-row hdr"><span class="sort-row-name">CUSTOMER</span><span class="sort-row-num">ORDERING</span></div>
+            <div class="sort-row hi"><span class="sort-row-name">SVAFAS STAVANGER…</span><span class="sort-row-num" style="color:var(--green)">4100 ← top</span></div>
+            <div class="sort-row"><span class="sort-row-name">OCAB AS</span><span class="sort-row-num">3700</span></div>
+            <div class="sort-row"><span class="sort-row-name">E PROPERTY MGMT</span><span class="sort-row-num">3000</span></div>
+            <div class="sort-row"><span class="sort-row-name">MOTIVE AS</span><span class="sort-row-num">2000</span></div>
+            <div class="sort-row"><span class="sort-row-name">AS BLOMSTERRINGEN</span><span class="sort-row-num" style="color:var(--orange)">200 ← bottom</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sort-card s2">
+        <div class="sort-head">Within a customer — unchecked float up</div>
+        <div class="sort-body">
+          Inside each customer section, <strong>unchecked orders always sit above checked ones</strong>. Ticking an item immediately sends it to the bottom. Remaining work is always visible at the top without scrolling.
+          <div class="sort-example">
+            <div class="sort-row hdr"><span class="sort-row-name">ORDERS</span><span class="sort-row-num">STATE</span></div>
+            <div class="sort-row"><span class="sort-row-name">Grovbrød 750g</span><span class="sort-row-num" style="color:var(--orange)">pending</span></div>
+            <div class="sort-row"><span class="sort-row-name">Loffbrød 500g</span><span class="sort-row-num" style="color:var(--orange)">pending</span></div>
+            <div class="sort-row done"><span class="sort-row-name">Barnehagebrødet</span><span class="sort-row-num" style="color:var(--green)">✓ done</span></div>
+            <div class="sort-row done"><span class="sort-row-name">Knekkebrød 200g</span><span class="sort-row-num" style="color:var(--green)">✓ done</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sort-card s3">
+        <div class="sort-head">Department sub-grouping</div>
+        <div class="sort-body">
+          If a customer has orders across multiple <strong>departments</strong> (sheet col 8), their orders are split with a labelled divider. If only one department (or none), no divider is shown. Handles customers like hospitals or schools with multiple delivery points.
+          <div class="sort-example">
+            <div class="sort-row" style="background:#1a1a1a;font-size:9px;color:var(--muted);font-weight:700;padding:5px 10px">AVDELING KJØKKEN</div>
+            <div class="sort-row"><span class="sort-row-name">Loffbrød 500g</span><span class="sort-row-num" style="color:var(--orange)">pending</span></div>
+            <div class="sort-row" style="background:#1a1a1a;font-size:9px;color:var(--muted);font-weight:700;padding:5px 10px">DAGSENTER</div>
+            <div class="sort-row"><span class="sort-row-name">Barnehagebrødet</span><span class="sort-row-num" style="color:var(--orange)">pending</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sort-card s4">
+        <div class="sort-head">Sorting Stage — bread type totals</div>
+        <div class="sort-body">
+          Shows each unique bread type with total units across all customers on the route. Sorted by quantity (toggle with QTY button). Ticked types sink to the bottom. Used for the collecting phase, before packing individual customer orders.
+          <div class="sort-example">
+            <div class="sort-row hdr"><span class="sort-row-name">BREAD TYPE</span><span class="sort-row-num">TOTAL</span></div>
+            <div class="sort-row"><span class="sort-row-name">Barnehagebrødet 750g</span><span class="sort-row-num" style="color:var(--yellow)">47 stk</span></div>
+            <div class="sort-row"><span class="sort-row-name">Grovbrød 750g</span><span class="sort-row-num" style="color:var(--yellow)">31 stk</span></div>
+            <div class="sort-row"><span class="sort-row-name">Loffbrød 500g</span><span class="sort-row-num" style="color:var(--yellow)">18 stk</span></div>
+            <div class="sort-row done"><span class="sort-row-name">Knekkebrød 200g</span><span class="sort-row-num" style="color:var(--green)">✓ 12 stk</span></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ 5. SYNC TABLE ══ -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-icon">🔄</div>
+      <div>
+        <div class="section-title">Sync Behaviour</div>
+        <div class="section-sub">When data is read from and written to Firebase</div>
+      </div>
+    </div>
+
+    <div class="sync-table">
+      <div class="sync-row hdr">
+        <div class="sync-cell">Trigger</div>
+        <div class="sync-cell">Firebase call</div>
+        <div class="sync-cell">What happens &amp; why</div>
+      </div>
+      <div class="sync-row">
+        <div class="sync-cell trigger">Page loads</div>
+        <div class="sync-cell method"><span class="pill g" style="font-size:8px">GET sheet</span><span class="pill b" style="font-size:8px">GET /statuses</span></div>
+        <div class="sync-cell">Sheet CSV fetched and parsed, dropdown built. Then Firebase statuses applied on top. Page renders with correct checked states immediately.</div>
+      </div>
+      <div class="sync-row">
+        <div class="sync-cell trigger">Checkbox tapped (check)</div>
+        <div class="sync-cell method"><span class="pill b" style="font-size:8px">PUT /statuses/{key}</span></div>
+        <div class="sync-cell">Local state flips immediately — no wait. Firebase PUT fires in background. <code>/lastModified</code> timestamp updated, other phones notice within 15 seconds.</div>
+      </div>
+      <div class="sync-row">
+        <div class="sync-cell trigger">Checkbox tapped (uncheck)</div>
+        <div class="sync-cell method"><span class="pill r" style="font-size:8px">DELETE /statuses/{key}</span></div>
+        <div class="sync-cell">Entry removed from Firebase entirely rather than writing "unchecked". Keeps the database clean and small. Other phones see the removal on next poll.</div>
+      </div>
+      <div class="sync-row">
+        <div class="sync-cell trigger">Last item in a customer ticked</div>
+        <div class="sync-cell method"><span class="pill b" style="font-size:8px">PUT</span><span class="pill b" style="font-size:8px">GET /statuses</span></div>
+        <div class="sync-cell">Sync overlay blocks the UI. App awaits the PUT, then immediately does a full GET to pick up any other driver's changes, before re-rendering the completion state.</div>
+      </div>
+      <div class="sync-row">
+        <div class="sync-cell trigger">Every 15 seconds (background)</div>
+        <div class="sync-cell method"><span class="pill b" style="font-size:8px">GET /lastModified</span></div>
+        <div class="sync-cell">Reads just the single timestamp number. If unchanged, nothing happens. If changed, triggers a full status fetch. Very cheap — avoids polling all data continuously.</div>
+      </div>
+      <div class="sync-row">
+        <div class="sync-cell trigger">Tab comes back into focus</div>
+        <div class="sync-cell method"><span class="pill b" style="font-size:8px">GET /statuses</span></div>
+        <div class="sync-cell">Full status sync runs immediately when the driver switches back from another app, catching up any missed changes.</div>
+      </div>
+      <div class="sync-row">
+        <div class="sync-cell trigger">Refresh button tapped</div>
+        <div class="sync-cell method"><span class="pill g" style="font-size:8px">GET sheet</span><span class="pill b" style="font-size:8px">GET /statuses</span></div>
+        <div class="sync-cell">Re-fetches the Google Sheet from scratch in case orders changed. Preserves all checked state in memory. Then fetches Firebase on top.</div>
+      </div>
+      <div class="sync-row">
+        <div class="sync-cell trigger">Reset confirmed</div>
+        <div class="sync-cell method"><span class="pill p" style="font-size:8px">PATCH /statuses</span></div>
+        <div class="sync-cell">Single PATCH sets all items for the route to null (bulk delete). Clears both order cards and Sorting Stage entries for that route only, in one request.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 6. FILES ══ -->
+  <div class="section">
+    <div class="section-head">
+      <div class="section-icon">📁</div>
+      <div>
+        <div class="section-title">Files in the Repo</div>
+        <div class="section-sub">What each file does and when you'd touch it</div>
+      </div>
+    </div>
+
+    <div class="files-grid">
+
+      <div class="file y">
+        <div class="file-name">index.html</div>
+        <div class="file-role">Page shell</div>
+        <div class="file-desc">HTML structure only — no logic, no styles. Header, dropdown, stats bar, Sorting Stage panel, content area, sync overlay, reset dialog. Links to style.css and script.js. Rarely needs changing.</div>
+      </div>
+
+      <div class="file b">
+        <div class="file-name">style.css</div>
+        <div class="file-role">All visual styling</div>
+        <div class="file-desc">Dark olive theme, yellow-gold accents, green checks. CSS variables at the very top control the whole palette — change <code style="font-size:9px;color:#888">--accent</code> to change yellow, <code style="font-size:9px;color:#888">--check</code> for green. All card states, touch targets, responsive breakpoints.</div>
+      </div>
+
+      <div class="file g">
+        <div class="file-name">script.js</div>
+        <div class="file-role">All app logic</div>
+        <div class="file-desc">The entire brain. Fetching, parsing, Firebase sync, rendering, event handling, polling. The two constants at the top — <code style="font-size:9px;color:#888">SHEET_CSV_URL</code> and <code style="font-size:9px;color:#888">FIREBASE_URL</code> — are the main things to update if backends change.</div>
+      </div>
+
+      <div class="file o">
+        <div class="file-name">logo.svg</div>
+        <div class="file-role">Bakehuset logo</div>
+        <div class="file-desc">The MVE / Bakehuset brand logo. Shown as a small image on order cards when supplier = "bakehuset". If this file is missing, the card still works — supplier name shows as text.</div>
+      </div>
+
+      <div class="file o">
+        <div class="file-name">sandnes bakeri.png</div>
+        <div class="file-role">Sandnes Bakeri logo</div>
+        <div class="file-desc">Shown on cards when supplier = "sandnes bakeri". Both logos use a white drop-shadow filter and fade to 35% opacity when the card is checked.</div>
+      </div>
+
+      <div class="file p">
+        <div class="file-name">firebase-rules.json</div>
+        <div class="file-role">Firebase security rules</div>
+        <div class="file-desc">/statuses is public read, per-key write. Writes are validated: must have status, route, customer fields; status must be exactly "checked" or "unchecked". Deploy via Firebase console if rules change.</div>
+      </div>
+
+      <div class="file m">
+        <div class="file-name">CNAME</div>
+        <div class="file-role">Custom domain</div>
+        <div class="file-desc">One line: <code style="font-size:9px;color:#f0d030">mvebread.dblo.net</code>. Tells GitHub Pages which domain to serve the site on. Do not edit or delete — breaks the URL.</div>
+      </div>
+
+      <div class="file m">
+        <div class="file-name">Code.gs</div>
+        <div class="file-role">Archived · Apps Script</div>
+        <div class="file-desc">The original write-back server, superseded by Firebase. Not connected to anything active. Kept for reference. Bound to a separate Google Sheet via .clasp.json.</div>
+      </div>
+
+      <div class="file m">
+        <div class="file-name">.gitignore</div>
+        <div class="file-role">Git config</div>
+        <div class="file-desc">Keeps CLAUDE.md (local AI context), .clasp.json (project IDs), and editor/OS junk out of the repo. Nothing functional — just keeps the commit history clean.</div>
+      </div>
+
+    </div>
+
+
+  </div>
+
+</div>
+</body>
+</html>

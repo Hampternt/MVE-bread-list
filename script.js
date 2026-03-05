@@ -470,7 +470,7 @@ document.getElementById('content').addEventListener('click', e => {
 function updateStats(orders) {
   const route        = orders[0].route;
   const routeChecked = checked[route] || {};
-  const doneCount    = orders.filter(o => routeChecked[o.orderNum]).length;
+  const doneCount    = orders.filter(o => routeChecked[o.itemId]).length;
   const totalQty     = orders.reduce((s, o) => s + o.qty, 0);
   document.getElementById('statTotal').textContent = orders.length;
   document.getElementById('statDone').textContent  = doneCount;
