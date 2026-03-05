@@ -603,7 +603,7 @@ input[type="checkbox"]:checked::after {
 /* ── ACCEPT ALTERNATIVES BADGE ───────────────────────────────── */
 .alts-badge {
   font-size: 12px;
-  color: var(--muted);
+  color: #b8b5a0;
   padding-top: 4px;
 }
 

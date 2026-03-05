@@ -17,8 +17,8 @@
   --red:     #ff6060;
   --orange:  #ff9944;
   --purple:  #c084ff;
-  --muted:   #555550;
-  --dim:     #888878;
+  --muted:   #888878;
+  --dim:     #aaa898;
   --text:    #dedad0;
 }
 
@@ -88,7 +88,7 @@ h1 {
 
 .intro-card .detail {
   font-size: 10px;
-  color: #555;
+  color: #888878;
   line-height: 1.6;
 }
 
@@ -193,7 +193,7 @@ h1 {
 .active-g .sys-name { color: var(--green);  }
 .active-b .sys-name { color: var(--blue);   }
 
-.sys-url { font-size: 8px; color: #444; letter-spacing: 0.05em; margin-top: 2px; }
+.sys-url { font-size: 8px; color: #7a7a70; letter-spacing: 0.05em; margin-top: 2px; }
 
 .sys-body { padding: 14px 16px; }
 
@@ -206,7 +206,7 @@ h1 {
   align-items: flex-start;
   gap: 8px;
   font-size: 9px;
-  color: #555;
+  color: #888878;
   line-height: 1.5;
 }
 
@@ -269,13 +269,13 @@ h1 {
 
 .fb-schema {
   font-size: 10px;
-  color: #555;
+  color: #888878;
   line-height: 1.8;
 }
 
 .fb-schema .k  { color: var(--orange); }
 .fb-schema .v  { color: var(--blue); }
-.fb-schema .c  { color: #444; font-style: italic; }
+.fb-schema .c  { color: #7a7a70; font-style: italic; }
 
 .fb-desc {
   font-size: 10px;
@@ -348,14 +348,14 @@ h1 {
 
 .mock-meta {
   font-size: 10px;
-  color: #555;
+  color: #888878;
   font-family: 'Space Mono', monospace;
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
 }
 
-.mock-alts { font-size: 10px; color: #555; margin-top: 4px; }
+.mock-alts { font-size: 10px; color: #b8b5a0; margin-top: 4px; }
 
 .mock-logo {
   font-size: 9px;
@@ -391,7 +391,7 @@ h1 {
   margin-bottom: 2px;
 }
 
-.anat-desc { font-size: 10px; color: #555; line-height: 1.5; }
+.anat-desc { font-size: 10px; color: #888878; line-height: 1.5; }
 
 /* SORTING */
 .sort-grid {
@@ -467,7 +467,7 @@ h1 {
 .sync-cell {
   padding: 11px 16px;
   font-size: 10px;
-  color: #555;
+  color: #888878;
   border-right: 1px solid #1a1a14;
   line-height: 1.5;
 }
@@ -528,7 +528,7 @@ h1 {
 .file.p .file-role { background: #0e0018; color: var(--purple); }
 .file.m .file-role { background: #141410; color: var(--muted); }
 
-.file-desc { font-size: 10px; color: #555; line-height: 1.6; }
+.file-desc { font-size: 10px; color: #888878; line-height: 1.6; }
 
 .callout {
   border: 1px solid;
@@ -556,7 +556,7 @@ h1 {
 .callout.warn .callout-title { color: var(--orange); }
 .callout.info .callout-title { color: var(--blue); }
 
-.callout-body { font-size: 10px; color: #666; line-height: 1.7; }
+.callout-body { font-size: 10px; color: #888878; line-height: 1.7; }
 .callout code { background: #1e1e18; padding: 1px 5px; border-radius: 2px; color: #aaa; font-size: 9px; }
 
 @media (max-width: 700px) {
@@ -1009,11 +1009,6 @@ h1 {
         <div class="file-desc">The original write-back server, superseded by Firebase. Not connected to anything active. Kept for reference. Bound to a separate Google Sheet via .clasp.json.</div>
       </div>
 
-      <div class="file m">
-        <div class="file-name">.gitignore</div>
-        <div class="file-role">Git config</div>
-        <div class="file-desc">Keeps CLAUDE.md (local AI context), .clasp.json (project IDs), and editor/OS junk out of the repo. Nothing functional — just keeps the commit history clean.</div>
-      </div>
 
     </div>
 
