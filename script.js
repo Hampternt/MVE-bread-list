@@ -24,20 +24,21 @@ const COLS = {
   // col 5 = Position (not used)
   supplier      : 6,   // Supplier
   customer      : 7,   // Customer
-  // col 8 = Department (not used for now)
+  dept          : 8,   // Department
   // col 9 = Delivery street (not used per brief)
   // col 10 = Comment (not used per brief)
   route         : 11,  // Route nickname
   routeOrdering : 12,  // Delivery order — higher = first in car = top of list
-  // col 13 = Accept alternatives (not used)
+  acceptAlts    : 13,  // Accept alternatives (TRUE/FALSE)
 };
 
 // ─── STATE ────────────────────────────────────────────────────
-let checked        = {};   // { route: { itemId: bool } }
-let summaryChecked = {};   // { route: { ware: bool } }
-let summaryOpen    = false;
-let summarySort    = 'qty-desc';  // 'qty-desc' = high→low  |  'qty-asc' = low→high
-let allData        = [];   // all rows parsed from sheet
+let checked           = {};   // { route: { itemId: bool } }
+let summaryChecked    = {};   // { route: { ware: bool } }
+let summaryOpen       = false;
+let summarySort       = 'qty-desc';  // 'qty-desc' = high→low  |  'qty-asc' = low→high
+let allData           = [];   // all rows parsed from sheet
+let lastKnownModified = null; // timestamp of last known Firebase write
 
 // ─── CSV PARSER ───────────────────────────────────────────────
 function parseCSV(text) {
@@ -68,8 +69,10 @@ function rowToObject(fields) {
     ware          : String(fields[COLS.ware]            || '').trim(),
     supplier      : String(fields[COLS.supplier]        || '').trim(),
     customer      : String(fields[COLS.customer]        || '').trim(),
+    dept          : String(fields[COLS.dept]            || '').trim(),
     route         : String(fields[COLS.route]           || '').trim(),
     routeOrdering : parseInt(fields[COLS.routeOrdering]) || 0,
+    acceptAlts    : String(fields[COLS.acceptAlts]      || '').trim().toUpperCase() === 'TRUE',
   };
 }
 
@@ -219,10 +222,61 @@ async function postStatus({ orderNum, route, customer, status }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status, route, customer }),
     });
+    // Stamp a lastModified timestamp so other clients can detect this change cheaply.
+    const ts = Date.now();
+    lastKnownModified = ts;
+    fetch(`${FIREBASE_URL}/lastModified.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ts),
+    });
   } catch (err) {
     console.warn('[BreadRun] Could not save status:', err.message);
   }
 }
+
+// Deletes an individual item status from Firebase.
+async function deleteStatus(orderNum) {
+  if (!FIREBASE_URL) return;
+  const key = encodeURIComponent(orderNum);
+  try {
+    await fetch(`${FIREBASE_URL}/statuses/${key}.json`, { method: 'DELETE' });
+    const ts = Date.now();
+    lastKnownModified = ts;
+    fetch(`${FIREBASE_URL}/lastModified.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ts),
+    });
+  } catch (err) {
+    console.warn('[BreadRun] Could not delete status:', err.message);
+  }
+}
+
+// Polls /lastModified — a single tiny number — every 15 s.
+// Only fetches full statuses when the timestamp has actually changed.
+async function pollForChanges() {
+  if (!FIREBASE_URL || !sel.value) return;
+  try {
+    const res = await fetch(`${FIREBASE_URL}/lastModified.json`);
+    if (!res.ok) return;
+    const ts = await res.json();
+    if (!ts) return;
+    if (lastKnownModified === null) {
+      lastKnownModified = ts; // first poll — just initialise, no redundant fetch
+      return;
+    }
+    if (ts !== lastKnownModified) {
+      lastKnownModified = ts;
+      console.log('[BreadRun] Remote change detected — fetching statuses…');
+      fetchStatuses();
+    }
+  } catch (err) {
+    console.warn('[BreadRun] Poll failed:', err.message);
+  }
+}
+
+setInterval(pollForChanges, 15_000);
 
 // ─── ROUTE LOADING ────────────────────────────────────────────
 function loadRoute() {
@@ -337,12 +391,11 @@ document.getElementById('summaryItems').addEventListener('change', e => {
   const route = sel.value;
   if (!summaryChecked[route]) summaryChecked[route] = {};
   summaryChecked[route][ware] = !summaryChecked[route][ware];
-  postStatus({
-    orderNum: 'SUMMARY|' + route + '|' + ware,
-    route,
-    customer: '',
-    status: summaryChecked[route][ware] ? 'checked' : 'unchecked',
-  });
+  if (summaryChecked[route][ware]) {
+    postStatus({ orderNum: 'SUMMARY|' + route + '|' + ware, route, customer: '', status: 'checked' });
+  } else {
+    deleteStatus('SUMMARY|' + route + '|' + ware);
+  }
   renderSummary(getRouteOrders(route));
 });
 
@@ -378,10 +431,21 @@ function renderOrders(orders) {
         </div>
         <div class="customer-orders">`;
 
-    // Pending items first, checked items sink to bottom
-    const pending = custOrders.filter(o => !routeChecked[o.itemId]);
-    const done    = custOrders.filter(o =>  routeChecked[o.itemId]);
-    [...pending, ...done].forEach(o => { html += cardHTML(o, routeChecked); });
+    // Pending items first, checked items sink to bottom — dept-aware sub-grouping
+    const depts = [...new Set(custOrders.map(o => o.dept))];
+    if (depts.length <= 1) {
+      const pending = custOrders.filter(o => !routeChecked[o.itemId]);
+      const done    = custOrders.filter(o =>  routeChecked[o.itemId]);
+      [...pending, ...done].forEach(o => { html += cardHTML(o, routeChecked); });
+    } else {
+      depts.forEach(dept => {
+        const deptOrders = custOrders.filter(o => o.dept === dept);
+        const pending    = deptOrders.filter(o => !routeChecked[o.itemId]);
+        const done       = deptOrders.filter(o =>  routeChecked[o.itemId]);
+        html += `<div class="dept-divider">${dept || '—'}</div>`;
+        [...pending, ...done].forEach(o => { html += cardHTML(o, routeChecked); });
+      });
+    }
 
     html += `</div></div>`;
   });
@@ -393,6 +457,13 @@ function renderOrders(orders) {
 }
 
 // ─── ORDER CARD ───────────────────────────────────────────────
+function supplierIconHTML(supplier) {
+  const s = supplier.toLowerCase();
+  if (s.includes('bakehuset')) return `<img class="supplier-icon" src="logo.svg" alt="Bakehuset">`;
+  if (s.includes('sandnes'))   return `<img class="supplier-icon" src="sandnes%20bakeri.png" alt="Sandnes Bakeri">`;
+  return '';
+}
+
 // orderNum is stored in data-order (HTML-encoded) — no inline JS quoting needed.
 function cardHTML(o, routeChecked) {
   const isCk = !!routeChecked[o.itemId];
@@ -406,6 +477,7 @@ function cardHTML(o, routeChecked) {
           <div class="order-top">
             <span class="ware-name">${o.ware}</span>
             <span class="qty-badge">QTY: ${o.qty}</span>
+            ${supplierIconHTML(o.supplier)}
           </div>
           <div class="order-meta">
             <span class="meta-item">
@@ -417,6 +489,7 @@ function cardHTML(o, routeChecked) {
               <span class="meta-value">${o.supplier}</span>
             </span>
           </div>
+          ${o.acceptAlts ? '<div class="alts-badge">&#x21C6; Accepts alternatives</div>' : ''}
         </div>
       </label>
     </div>`;
@@ -449,12 +522,20 @@ document.getElementById('content').addEventListener('change', async e => {
     if (allCustDone) {
       const syncOverlay = document.getElementById('syncOverlay');
       syncOverlay.classList.add('open');
-      await postStatus({ orderNum: changedItem.itemKey, route, customer: changedItem.customer, status: isNowChecked ? 'checked' : 'unchecked' });
-      await fetchStatuses(); // GET after PUT — no race, picks up other drivers' changes
+      if (isNowChecked) {
+        await postStatus({ orderNum: changedItem.itemKey, route, customer: changedItem.customer, status: 'checked' });
+      } else {
+        await deleteStatus(changedItem.itemKey);
+      }
+      await fetchStatuses(); // GET after PUT/DELETE — no race, picks up other drivers' changes
       syncOverlay.classList.remove('open');
       return; // fetchStatuses() → renderCurrentRoute() handles the re-render
     } else {
-      postStatus({ orderNum: changedItem.itemKey, route, customer: changedItem.customer, status: isNowChecked ? 'checked' : 'unchecked' });
+      if (isNowChecked) {
+        postStatus({ orderNum: changedItem.itemKey, route, customer: changedItem.customer, status: 'checked' });
+      } else {
+        deleteStatus(changedItem.itemKey);
+      }
     }
   }
 
@@ -495,6 +576,32 @@ function doReset() {
   updateStats(orders);
   renderSummary(orders);
   renderOrders(orders);
+  resetFirebaseRoute(route, orders); // async, fire-and-forget
+}
+
+// Clears all Firebase entries for a route via a single PATCH with null values.
+async function resetFirebaseRoute(route, orders) {
+  if (!FIREBASE_URL) return;
+  const patch = {};
+  orders.forEach(o => { patch[encodeURIComponent(o.itemKey)] = null; });
+  const wares = [...new Set(orders.map(o => o.ware))];
+  wares.forEach(w => { patch[encodeURIComponent('SUMMARY|' + route + '|' + w)] = null; });
+  try {
+    await fetch(`${FIREBASE_URL}/statuses.json`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch),
+    });
+    const ts = Date.now();
+    lastKnownModified = ts;
+    fetch(`${FIREBASE_URL}/lastModified.json`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(ts),
+    });
+  } catch (err) {
+    console.warn('[BreadRun] Could not reset Firebase route:', err.message);
+  }
 }
 
 // ─── STATIC UI WIRING ────────────────────────────────────────
