@@ -16,7 +16,7 @@
   --text:       #f0ede0;
   --muted:      #888878;
   --done-bg:    #1a3520;   /* dark green — checked order card background */
-  --done-text:  #555545;
+  --done-text:  #888878;
   --check:      #5abf6a;
 }
 
@@ -383,7 +383,7 @@ select:focus { outline: none; border-color: var(--accent); }
 .order-card.checked {
   border-left-color: var(--check);
   background: var(--done-bg);
-  opacity: 0.65;
+  opacity: 0.75;
 }
 
 /* Entire card row is the touch target */
@@ -466,10 +466,10 @@ input[type="checkbox"]:checked::after {
   align-items: center;
   gap: 4px;
 }
-.order-card.checked .meta-item { color: #444; }
+.order-card.checked .meta-item { color: #666; }
 .meta-label { text-transform: uppercase; letter-spacing: 0.06em; }
 .meta-value { color: var(--text); }
-.order-card.checked .meta-value { color: #555; }
+.order-card.checked .meta-value { color: #777; }
 
 /* ── ALL DONE BANNER ────────────────────────────────────────── */
 .all-done { text-align: center; padding: 28px 20px; }
