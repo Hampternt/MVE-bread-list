@@ -1,0 +1,22 @@
+{
+  "rules": {
+    "statuses": {
+      ".read": true,
+      "$key": {
+        ".write": true,
+        ".validate": "!newData.exists() || (
+          newData.hasChildren(['status', 'route', 'customer'])
+          && newData.child('status').isString()
+          && (newData.child('status').val() === 'checked' || newData.child('status').val() === 'unchecked')
+          && newData.child('route').isString()
+          && newData.child('customer').isString()
+        )"
+      }
+    },
+    "lastModified": {
+      ".read": true,
+      ".write": true,
+      ".validate": "newData.isNumber()"
+    }
+  }
+}

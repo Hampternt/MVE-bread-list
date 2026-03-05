@@ -202,7 +202,7 @@ select:focus { outline: none; border-color: var(--accent); }
 
 .summary-subtitle {
   font-family: 'DM Mono', monospace;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   letter-spacing: 0.06em;
 }
@@ -212,7 +212,7 @@ select:focus { outline: none; border-color: var(--accent); }
   border: 1px solid var(--accent-dim);
   color: var(--accent);
   font-family: 'DM Mono', monospace;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.06em;
   padding: 4px 10px;
@@ -220,7 +220,7 @@ select:focus { outline: none; border-color: var(--accent); }
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
-  min-height: 36px;
+  min-height: 44px;
   min-width: 44px;
 }
 .summary-sort-btn:active {
@@ -314,7 +314,7 @@ select:focus { outline: none; border-color: var(--accent); }
 .customer-group {
   margin-bottom: 14px;
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 8px;
   overflow: hidden;
 }
 .customer-group.cg-done { border-color: #2a2a25; opacity: 0.7; }
@@ -434,7 +434,7 @@ input[type="checkbox"]:checked::after {
 
 .order-top {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 10px;
   margin-bottom: 4px;
   flex-wrap: wrap;
@@ -460,7 +460,7 @@ input[type="checkbox"]:checked::after {
 
 .meta-item {
   font-family: 'DM Mono', monospace;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted);
   display: flex;
   align-items: center;
@@ -571,6 +571,40 @@ input[type="checkbox"]:checked::after {
   text-transform: uppercase;
   cursor: pointer;
   border-radius: 4px;
+}
+
+/* ── DEPARTMENT DIVIDER ──────────────────────────────────────── */
+.dept-divider {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 6px 12px 4px;
+  border-top: 1px solid #2a2a28;
+  margin-top: 4px;
+}
+.dept-divider:first-child {
+  border-top: none;
+  margin-top: 0;
+}
+
+/* ── SUPPLIER ICON ───────────────────────────────────────────── */
+.supplier-icon {
+  height: 30px;
+  width: auto;
+  max-width: 80px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 2px rgba(255,255,255,0.8)) drop-shadow(0 0 5px rgba(255,255,255,0.4));
+}
+.order-card.checked .supplier-icon { opacity: 0.35; }
+
+/* ── ACCEPT ALTERNATIVES BADGE ───────────────────────────────── */
+.alts-badge {
+  font-size: 12px;
+  color: var(--muted);
+  padding-top: 4px;
 }
 
 /* ── RESPONSIVE (small phones) ──────────────────────────────── */
