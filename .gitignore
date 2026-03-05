@@ -1,0 +1,13 @@
+# Claude Code instructions (local only)
+CLAUDE.md
+
+# Google Apps Script clasp config (contains project IDs)
+.clasp.json
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor directories
+.vscode/
+.idea/
