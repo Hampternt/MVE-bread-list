@@ -754,9 +754,12 @@ input[type="checkbox"]:checked::after {
 }
 
 /* ── RESPONSIVE (small phones) ──────────────────────────────── */
+@media (max-width: 600px) {
+  .info-btn       { display: none; }
+}
+
 @media (max-width: 380px) {
   .ware-name      { font-size: 16px; }
   .header-text h1 { font-size: 22px; }
   .customer-name  { font-size: 12px; }
-  .info-btn       { display: none; }
 }
