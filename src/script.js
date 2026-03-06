@@ -509,8 +509,8 @@ function renderOrders(orders) {
 // ─── ORDER CARD ───────────────────────────────────────────────
 function supplierIconHTML(supplier) {
   const supplierLower = supplier.toLowerCase();
-  if (supplierLower.includes('bakehuset')) return `<img class="supplier-icon" src="logo.svg" alt="Bakehuset">`;
-  if (supplierLower.includes('sandnes'))   return `<img class="supplier-icon" src="sandnes%20bakeri.png" alt="Sandnes Bakeri">`;
+  if (supplierLower.includes('bakehuset')) return `<img class="supplier-icon" src="assets/logo.svg" alt="Bakehuset">`;
+  if (supplierLower.includes('sandnes'))   return `<img class="supplier-icon" src="assets/sandnes-bakeri.png" alt="Sandnes Bakeri">`;
   return '';
 }
 
