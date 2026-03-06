@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Missing Items Report — Bread Run</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    /* ── DESIGN TOKENS ── */
+    :root {
+      --bg:         #1a1a18;
+      --surface:    #252520;
+      --border:     #3a3a32;
+      --accent:     #e8c840;
+      --accent-dim: #b09a28;
+      --text:       #f0ede0;
+      --muted:      #888878;
+      --check:      #5abf6a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Barlow Condensed', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--accent);
+      color: #1a1a18;
+      padding: 18px 20px 14px;
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      border-bottom: 3px solid #c8a820;
+    }
+
+    .logo-icon { font-size: 32px; line-height: 1; }
+
+    .header-text h1 {
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+
+    .header-text p {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      opacity: 0.65;
+      text-transform: uppercase;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .header-actions { margin-left: auto; display: flex; align-items: center; }
+
+    .refresh-btn {
+      background: rgba(0, 0, 0, 0.15);
+      border: 2px solid rgba(0, 0, 0, 0.2);
+      color: #1a1a18;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 8px 16px;
+      border-radius: 3px;
+      cursor: pointer;
+      min-width: 44px;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .refresh-btn:active { background: rgba(0, 0, 0, 0.3); }
+
+    /* ── LAYOUT ── */
+    .report-wrap { max-width: 680px; margin: 0 auto; padding: 14px 16px; }
+
+    /* ── FEEDBACK MESSAGES ── */
+    #loadingMsg, #errorMsg {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      padding: 60px 20px;
+      letter-spacing: 0.06em;
+    }
+    #errorMsg { color: #e07070; }
+
+    /* ── SECTION HEADINGS ── */
+    .report-section { margin-bottom: 24px; }
+
+    .section-heading {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 12px 0 8px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 10px;
+    }
+
+    /* ── REPORT CARDS ── */
+    .report-card {
+      background: var(--surface);
+      border-left: 4px solid var(--border);
+      border-radius: 4px;
+      padding: 14px 16px;
+      margin-bottom: 8px;
+    }
+    .report-card.replaced      { border-left-color: var(--accent); background: #26230e; }
+    .report-card.fully-missing { border-left-color: #bf4040;       background: #281818; }
+
+    .card-top {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .card-ware {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      line-height: 1.2;
+      flex: 1;
+    }
+    .fully-missing .card-ware { color: #e07070; }
+    .replaced      .card-ware { color: var(--accent); }
+
+    /* ── STATUS BADGE ── */
+    .status-badge {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .badge-missing  { background: rgba(191,64,64,0.2);   color: #e07070;       border: 1px solid #7a3030; }
+    .badge-replaced { background: rgba(232,200,64,0.15); color: var(--accent); border: 1px solid var(--accent-dim); }
+
+    /* ── META PILLS ── */
+    .card-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .meta-pill {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .meta-label {
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: 11px;
+    }
+
+    .meta-value { color: var(--text); }
+    .fully-missing .meta-value { color: #c0a0a0; }
+    .replaced      .meta-value { color: #d4c070; }
+
+    /* ── EMPTY STATE ── */
+    .empty-state {
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      color: var(--muted);
+      padding: 16px 0;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 380px) {
+      .header-text h1 { font-size: 22px; }
+      .card-ware      { font-size: 17px; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="logo-icon">🍞</div>
+    <div class="header-text">
+      <h1>Missing Items</h1>
+      <p>Report</p>
+    </div>
+    <div class="header-actions">
+      <button class="refresh-btn">↻ Refresh</button>
+    </div>
+  </header>
+
+  <div class="report-wrap">
+    <div id="loadingMsg">Loading…</div>
+    <div id="errorMsg" style="display:none"></div>
+
+    <div id="report" style="display:none">
+      <section class="report-section" id="sectionReplaced">
+        <h2 class="section-heading">Replaced</h2>
+        <div id="listReplaced"></div>
+      </section>
+      <section class="report-section" id="sectionMissing">
+        <h2 class="section-heading">Fully Missing</h2>
+        <div id="listMissing"></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const FIREBASE_URL = 'https://mve-bread-default-rtdb.europe-west1.firebasedatabase.app';
+
+    async function fetchMissing() {
+      document.getElementById('loadingMsg').style.display = 'block';
+      document.getElementById('errorMsg').style.display  = 'none';
+      document.getElementById('report').style.display    = 'none';
+
+      try {
+        const res = await fetch(`${FIREBASE_URL}/statuses.json`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        render(data);
+      } catch (err) {
+        document.getElementById('loadingMsg').style.display = 'none';
+        document.getElementById('errorMsg').style.display  = 'block';
+        document.getElementById('errorMsg').textContent    = `Could not load data — ${err.message}`;
+      }
+    }
+
+    function render(data) {
+      const replaced = [];
+      const missing  = [];
+
+      if (data) {
+        Object.entries(data).forEach(([encodedKey, val]) => {
+          if (val.status !== 'missing') return;
+          const key = decodeURIComponent(encodedKey);
+          if (key.startsWith('SUMMARY|')) return;
+
+          const pipeIdx  = key.indexOf('|');
+          const orderNum = pipeIdx >= 0 ? key.slice(0, pipeIdx) : key;
+          const ware     = pipeIdx >= 0 ? key.slice(pipeIdx + 1) : key;
+
+          const item = {
+            orderNum,
+            ware,
+            route:          val.route          || '—',
+            customer:       val.customer        || '—',
+            qtyMissing:     val.qtyMissing      ?? null,
+            replacementWare: val.replacementWare ?? null,
+          };
+
+          if (item.replacementWare) replaced.push(item);
+          else                       missing.push(item);
+        });
+      }
+
+      document.getElementById('listReplaced').innerHTML =
+        replaced.length ? replaced.map(cardHTML).join('') : emptyHTML('No replaced items');
+      document.getElementById('listMissing').innerHTML =
+        missing.length  ? missing.map(cardHTML).join('')  : emptyHTML('No fully missing items');
+
+      document.getElementById('loadingMsg').style.display = 'none';
+      document.getElementById('report').style.display     = 'block';
+    }
+
+    function cardHTML(item) {
+      const cardClass  = item.replacementWare ? 'replaced'       : 'fully-missing';
+      const badgeClass = item.replacementWare ? 'badge-replaced' : 'badge-missing';
+      const badgeText  = item.replacementWare ? 'REPLACED'       : 'MISSING';
+
+      const qtyHTML = item.qtyMissing != null
+        ? `<span class="meta-pill"><span class="meta-label">Qty missing</span>&nbsp;<span class="meta-value">${item.qtyMissing}</span></span>`
+        : '';
+      const replHTML = item.replacementWare
+        ? `<span class="meta-pill"><span class="meta-label">Replacement</span>&nbsp;<span class="meta-value">${item.replacementWare}</span></span>`
+        : '';
+
+      return `
+        <div class="report-card ${cardClass}">
+          <div class="card-top">
+            <span class="card-ware">${item.ware}</span>
+            <span class="status-badge ${badgeClass}">${badgeText}</span>
+          </div>
+          <div class="card-meta">
+            <span class="meta-pill"><span class="meta-label">Route</span>&nbsp;<span class="meta-value">${item.route}</span></span>
+            <span class="meta-pill"><span class="meta-label">Customer</span>&nbsp;<span class="meta-value">${item.customer}</span></span>
+            <span class="meta-pill"><span class="meta-label">Order</span>&nbsp;<span class="meta-value">${item.orderNum}</span></span>
+            ${qtyHTML}${replHTML}
+          </div>
+        </div>`;
+    }
+
+    function emptyHTML(msg) {
+      return `<div class="empty-state">${msg}</div>`;
+    }
+
+    document.querySelector('.refresh-btn').addEventListener('click', fetchMissing);
+    fetchMissing();
+  </script>
+
+</body>
+</html>
