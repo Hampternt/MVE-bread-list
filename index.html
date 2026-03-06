@@ -22,6 +22,7 @@
       <p>Route Checklist</p>
     </div>
     <div class="header-actions">
+      <a class="info-btn" href="missing-report.html">Missing items</a>
       <a class="info-btn" href="project-map.html">How the magic is done</a>
       <button class="refresh-btn">↻ Refresh</button>
     </div>
@@ -78,6 +79,26 @@
       <div class="confirm-actions">
         <button class="confirm-cancel">Cancel</button>
         <button class="confirm-ok">Reset</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MISSING ITEM DETAIL SHEET -->
+  <div class="confirm-overlay" id="missingDetailOverlay">
+    <div class="confirm-sheet missing-detail-sheet">
+      <div class="confirm-title">Missing item</div>
+      <div id="detailWareName"></div>
+      <div class="missing-detail-field">
+        <label class="missing-detail-label" for="detailQtyMissing">Qty missing</label>
+        <input type="number" id="detailQtyMissing" min="1" placeholder="0">
+      </div>
+      <div id="detailReplacementRow" class="missing-detail-field">
+        <label class="missing-detail-label" for="detailReplacementWare">Replacement ware</label>
+        <input type="text" id="detailReplacementWare" placeholder="e.g. Ciabatta">
+      </div>
+      <div class="confirm-actions">
+        <button class="confirm-cancel missing-detail-cancel">Cancel</button>
+        <button class="confirm-ok missing-detail-save">Save</button>
       </div>
     </div>
   </div>

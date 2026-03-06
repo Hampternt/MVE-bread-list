@@ -7,9 +7,11 @@
         ".validate": "!newData.exists() || (
           newData.hasChildren(['status', 'route', 'customer'])
           && newData.child('status').isString()
-          && (newData.child('status').val() === 'checked' || newData.child('status').val() === 'unchecked')
+          && (newData.child('status').val() === 'checked' || newData.child('status').val() === 'unchecked' || newData.child('status').val() === 'missing')
           && newData.child('route').isString()
           && newData.child('customer').isString()
+          && (!newData.hasChild('qtyMissing') || newData.child('qtyMissing').isNumber())
+          && (!newData.hasChild('replacementWare') || newData.child('replacementWare').isString())
         )"
       }
     },
