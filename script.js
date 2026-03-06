@@ -654,9 +654,8 @@ document.getElementById('content').addEventListener('click', e => {
 
 // ─── LONG PRESS — toggle missing state ────────────────────────
 document.getElementById('content').addEventListener('pointerdown', e => {
-  const checkboxArea = e.target.closest('.checkbox-area');
-  if (!checkboxArea) return;
-  const orderCard = checkboxArea.closest('.order-card');
+  if (e.target.closest('.missing-detail-btn') || e.target.closest('.reset-btn')) return;
+  const orderCard = e.target.closest('.order-card');
   if (!orderCard) return;
 
   const startX = e.clientX, startY = e.clientY;
