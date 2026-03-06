@@ -3,7 +3,7 @@
 // script.js
 // ─────────────────────────────────────────────────────────────
 // Data flow:
-//   fetchSheetData() → allData[]
+//   fetchSheetData() → allOrderRows[]
 //   loadRoute() → renderCurrentRoute()
 //   renderCurrentRoute() → renderSummary() + renderOrders()
 //   checkbox change (delegated) → toggle / toggleSummaryItem → re-render
@@ -33,12 +33,25 @@ const COLS = {
 };
 
 // ─── STATE ────────────────────────────────────────────────────
-let checked           = {};   // { route: { itemId: bool } }
-let summaryChecked    = {};   // { route: { ware: bool } }
-let summaryOpen       = false;
-let summarySort       = 'qty-desc';  // 'qty-desc' = high→low  |  'qty-asc' = low→high
-let allData           = [];   // all rows parsed from sheet
-let lastKnownModified = null; // timestamp of last known Firebase write
+// itemChecked      — { route: { itemId: bool } } — which order cards are ticked
+// itemId is a session-local row index, not stored in Firebase; see itemKey below.
+let itemChecked          = {};
+// summaryTypeChecked — { route: { ware: bool } } — which Sorting Stage bread types are ticked
+let summaryTypeChecked   = {};
+// isSummaryOpen    — whether the Sorting Stage collapsible is expanded
+let isSummaryOpen        = false;
+// summaryProductSort — sort direction for the summary list: 'qty-desc' | 'qty-asc'
+let summaryProductSort   = 'qty-desc';
+// allOrderRows     — every data row from the Google Sheet (header stripped, filtered to rows with an orderNum)
+let allOrderRows         = [];
+// lastFirebaseWriteTime — Unix ms timestamp of the last write we know about at /lastModified
+//                          Used by the 15 s poller to detect remote changes without a full fetch.
+let lastFirebaseWriteTime = null;
+// itemMissingData — { route: { itemId: { qtyMissing, replacementWare } } }
+//                   Entry present = item is missing; values may be null if detail not yet filled.
+let itemMissingData    = {};
+// missingDetailTarget — { route, itemId, acceptAlts } | null — which card's detail sheet is open
+let missingDetailTarget = null;
 
 // ─── CSV PARSER ───────────────────────────────────────────────
 function parseCSV(text) {
@@ -47,16 +60,16 @@ function parseCSV(text) {
   for (const line of lines) {
     if (!line.trim()) continue;
     const fields = [];
-    let cur = '', inQ = false;
+    let fieldBuffer = '', inQuotes = false;
     for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') {
-        if (inQ && line[i + 1] === '"') { cur += '"'; i++; }
-        else inQ = !inQ;
-      } else if (ch === ',' && !inQ) { fields.push(cur.trim()); cur = ''; }
-      else cur += ch;
+      const char = line[i];
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') { fieldBuffer += '"'; i++; }
+        else inQuotes = !inQuotes;
+      } else if (char === ',' && !inQuotes) { fields.push(fieldBuffer.trim()); fieldBuffer = ''; }
+      else fieldBuffer += char;
     }
-    fields.push(cur.trim());
+    fields.push(fieldBuffer.trim());
     rows.push(fields);
   }
   return rows;
@@ -77,7 +90,7 @@ function rowToObject(fields) {
 }
 
 // ─── FETCH ────────────────────────────────────────────────────
-const sel = document.getElementById('routeSelect');
+const routeDropdown = document.getElementById('routeSelect');
 
 function showMsg(icon, msg) {
   document.getElementById('content').innerHTML =
@@ -93,57 +106,62 @@ async function fetchSheetData() {
   showMsg('⏳', 'Loading…');
   console.log('[BreadRun] Fetching sheet data…');
 
-  const isLocal  = location.protocol === 'file:';
-  const PROXY    = 'https://corsproxy.io/?';
-  const bustUrl  = SHEET_CSV_URL + '&_=' + Date.now();
-  const finalUrl = isLocal ? PROXY + encodeURIComponent(bustUrl) : bustUrl;
+  const isLocalFileProtocol = location.protocol === 'file:';
+  const PROXY               = 'https://corsproxy.io/?';
+  // Google Sheets CDN caches aggressively — append a timestamp to bypass it.
+  const cacheBustedUrl = SHEET_CSV_URL + '&_=' + Date.now();
+  // When opened via file:// the browser blocks cross-origin fetches, so we route
+  // through a CORS proxy. On a real server the sheet URL is fetched directly.
+  const fetchUrl = isLocalFileProtocol ? PROXY + encodeURIComponent(cacheBustedUrl) : cacheBustedUrl;
 
   try {
-    const res = await fetch(finalUrl);
+    const res = await fetch(fetchUrl);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const text = await res.text();
 
     const rows = parseCSV(text);
     if (rows.length < 2) throw new Error('Sheet appears empty');
 
-    // Skip header row; skip rows with no order ID
-    // itemId is a unique per-row index — orderNum alone isn't unique because
-    // multiple bread line items can share the same Order ID.
-    allData = rows.slice(1)
+    // Skip header row; skip rows with no order ID.
+    // itemId uses the row index (not orderNum) because a single Order ID can
+    // span multiple bread line items (one per product type).
+    allOrderRows = rows.slice(1)
       .map((fields, i) => {
-        const o = { ...rowToObject(fields), itemId: String(i) };
-        o.itemKey = o.orderNum + '|' + o.ware;  // stable cross-device identity
-        return o;
+        const order = { ...rowToObject(fields), itemId: String(i) };
+        // itemKey = "orderNum|ware" — stable cross-device identity stored in Firebase.
+        // Unlike itemId (session-local index), itemKey survives page reloads.
+        order.itemKey = order.orderNum + '|' + order.ware;
+        return order;
       })
-      .filter(r => r.orderNum);
+      .filter(order => order.orderNum);
 
-    if (!allData.length) {
+    if (!allOrderRows.length) {
       showMsg('📭', 'No orders found in sheet');
       return;
     }
 
-    console.log(`[BreadRun] Sheet loaded — ${allData.length} items across ${[...new Set(allData.map(r => r.route))].length} routes`);
+    console.log(`[BreadRun] Sheet loaded — ${allOrderRows.length} items across ${[...new Set(allOrderRows.map(order => order.route))].length} routes`);
 
     // Rebuild route dropdown, preserving current selection if still valid
-    const currentRoute = sel.value;
-    while (sel.options.length > 1) sel.remove(1);
+    const currentRoute = routeDropdown.value;
+    while (routeDropdown.options.length > 1) routeDropdown.remove(1);
 
-    const routes = [...new Set(allData.map(r => r.route))].sort((a, b) => {
+    const routes = [...new Set(allOrderRows.map(order => order.route))].sort((a, b) => {
       // Numeric sort where possible (1, 2 … 10), then alphabetic (hau 1, hau 2)
       const na = parseInt(a), nb = parseInt(b);
       if (!isNaN(na) && !isNaN(nb)) return na - nb;
       return a.localeCompare(b);
     });
 
-    routes.forEach(r => {
+    routes.forEach(route => {
       const opt       = document.createElement('option');
-      opt.value       = r;
-      opt.textContent = `Route ${r}`;
-      sel.appendChild(opt);
+      opt.value       = route;
+      opt.textContent = `Route ${route}`;
+      routeDropdown.appendChild(opt);
     });
 
     if (currentRoute && routes.includes(currentRoute)) {
-      sel.value = currentRoute;
+      routeDropdown.value = currentRoute;
       renderCurrentRoute();  // re-render without wiping checked state
     } else {
       showMsg('🚚', 'Select your route to begin');
@@ -163,7 +181,7 @@ fetchSheetData();
 
 // Immediately sync when the user returns to this tab.
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden && sel.value) {
+  if (!document.hidden && routeDropdown.value) {
     console.log('[BreadRun] Tab focused: fetching statuses…');
     fetchStatuses();
   }
@@ -172,20 +190,35 @@ document.addEventListener('visibilitychange', () => {
 // ─── STATUS SYNC ──────────────────────────────────────────────
 // Applies an array of status rows (from GET or POST response) into local state.
 function applyStatusRows(rows) {
-  const keyToItem = {};
-  allData.forEach(d => { keyToItem[d.itemKey] = { route: d.route, itemId: d.itemId }; });
-  rows.forEach(r => {
-    if (r.orderNum.startsWith('SUMMARY|')) {
-      const [, rRoute, rWare] = r.orderNum.split('|');
-      if (!summaryChecked[rRoute]) summaryChecked[rRoute] = {};
-      summaryChecked[rRoute][rWare] = (r.status === 'checked');
+  // Build a lookup from itemKey → { route, itemId } so we can map Firebase keys back to local state.
+  const itemKeyLookup = {};
+  allOrderRows.forEach(d => { itemKeyLookup[d.itemKey] = { route: d.route, itemId: d.itemId }; });
+
+  rows.forEach(statusRow => {
+    // Summary items share the /statuses path but are distinguished by a "SUMMARY|" prefix
+    // on the key, e.g. "SUMMARY|2|Rugbrød". This avoids a separate Firebase endpoint.
+    if (statusRow.orderNum.startsWith('SUMMARY|')) {
+      const [, rRoute, rWare] = statusRow.orderNum.split('|');
+      if (!summaryTypeChecked[rRoute]) summaryTypeChecked[rRoute] = {};
+      summaryTypeChecked[rRoute][rWare] = (statusRow.status === 'checked');
       return;
     }
-    const item = keyToItem[r.orderNum]; // orderNum column stores itemKey
+    const item = itemKeyLookup[statusRow.orderNum]; // orderNum column stores itemKey
     if (!item) return; // stale or old-format entry — ignore
-    if (!checked[item.route]) checked[item.route] = {};
-    if (r.status === 'checked')   checked[item.route][item.itemId] = true;
-    if (r.status === 'unchecked') checked[item.route][item.itemId] = false;
+    if (!itemChecked[item.route])     itemChecked[item.route]     = {};
+    if (!itemMissingData[item.route]) itemMissingData[item.route] = {};
+    if (statusRow.status === 'checked') {
+      itemChecked[item.route][item.itemId] = true;
+      delete itemMissingData[item.route][item.itemId];
+    } else if (statusRow.status === 'unchecked') {
+      itemChecked[item.route][item.itemId] = false;
+      delete itemMissingData[item.route][item.itemId];
+    } else if (statusRow.status === 'missing') {
+      itemMissingData[item.route][item.itemId] = {
+        qtyMissing:      statusRow.qtyMissing      ?? null,
+        replacementWare: statusRow.replacementWare ?? null,
+      };
+    }
   });
 }
 
@@ -205,30 +238,33 @@ async function fetchStatuses() {
       }));
       applyStatusRows(rows);
     }
-    if (sel.value) renderCurrentRoute();
+    if (routeDropdown.value) renderCurrentRoute();
   } catch (err) {
     console.warn('[BreadRun] Could not load statuses:', err.message);
   }
 }
 
 // Writes an individual item status to Firebase via PUT.
-async function postStatus({ orderNum, route, customer, status }) {
+async function postStatus({ orderNum, route, customer, status, qtyMissing = null, replacementWare = null }) {
   if (!FIREBASE_URL) return;
   const key = encodeURIComponent(orderNum);
   console.log(`[BreadRun] POST status — route=${route} customer="${customer}" item=${orderNum} status=${status}`);
+  const body = { status, route, customer };
+  if (qtyMissing      !== null) body.qtyMissing      = qtyMissing;
+  if (replacementWare !== null) body.replacementWare = replacementWare;
   try {
     await fetch(`${FIREBASE_URL}/statuses/${key}.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status, route, customer }),
+      body: JSON.stringify(body),
     });
     // Stamp a lastModified timestamp so other clients can detect this change cheaply.
-    const ts = Date.now();
-    lastKnownModified = ts;
+    const serverTimestamp = Date.now();
+    lastFirebaseWriteTime = serverTimestamp;
     fetch(`${FIREBASE_URL}/lastModified.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ts),
+      body: JSON.stringify(serverTimestamp),
     });
   } catch (err) {
     console.warn('[BreadRun] Could not save status:', err.message);
@@ -241,12 +277,12 @@ async function deleteStatus(orderNum) {
   const key = encodeURIComponent(orderNum);
   try {
     await fetch(`${FIREBASE_URL}/statuses/${key}.json`, { method: 'DELETE' });
-    const ts = Date.now();
-    lastKnownModified = ts;
+    const serverTimestamp = Date.now();
+    lastFirebaseWriteTime = serverTimestamp;
     fetch(`${FIREBASE_URL}/lastModified.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ts),
+      body: JSON.stringify(serverTimestamp),
     });
   } catch (err) {
     console.warn('[BreadRun] Could not delete status:', err.message);
@@ -256,18 +292,20 @@ async function deleteStatus(orderNum) {
 // Polls /lastModified — a single tiny number — every 15 s.
 // Only fetches full statuses when the timestamp has actually changed.
 async function pollForChanges() {
-  if (!FIREBASE_URL || !sel.value) return;
+  if (!FIREBASE_URL || !routeDropdown.value) return;
   try {
     const res = await fetch(`${FIREBASE_URL}/lastModified.json`);
     if (!res.ok) return;
-    const ts = await res.json();
-    if (!ts) return;
-    if (lastKnownModified === null) {
-      lastKnownModified = ts; // first poll — just initialise, no redundant fetch
+    const serverTimestamp = await res.json();
+    if (!serverTimestamp) return;
+    if (lastFirebaseWriteTime === null) {
+      // First poll after page load — just record the current timestamp.
+      // fetchSheetData() already called fetchStatuses(), so no second fetch needed.
+      lastFirebaseWriteTime = serverTimestamp;
       return;
     }
-    if (ts !== lastKnownModified) {
-      lastKnownModified = ts;
+    if (serverTimestamp !== lastFirebaseWriteTime) {
+      lastFirebaseWriteTime = serverTimestamp;
       console.log('[BreadRun] Remote change detected — fetching statuses…');
       fetchStatuses();
     }
@@ -280,7 +318,7 @@ setInterval(pollForChanges, 15_000);
 
 // ─── ROUTE LOADING ────────────────────────────────────────────
 function loadRoute() {
-  const route = sel.value;
+  const route = routeDropdown.value;
   if (!route) {
     document.getElementById('summaryBox').style.display = 'none';
     document.getElementById('statsBar').style.display   = 'none';
@@ -291,7 +329,7 @@ function loadRoute() {
 }
 
 function renderCurrentRoute() {
-  const route  = sel.value;
+  const route  = routeDropdown.value;
   const orders = getRouteOrders(route);
 
   if (!orders.length) {
@@ -307,68 +345,74 @@ function renderCurrentRoute() {
 
 // Returns all orders for a given route
 function getRouteOrders(route) {
-  return allData.filter(r => r.route === route);
+  return allOrderRows.filter(order => order.route === route);
 }
 
-// Returns customers grouped and sorted by highest routeOrdering first.
-// Position never changes once the route is loaded — completion is
-// shown via cg-done styling only, no jumping.
+// Returns true if an item is resolved (checked OR marked missing)
+function isItemResolved(route, itemId) {
+  return !!(itemChecked[route]?.[itemId] || itemMissingData[route]?.[itemId]);
+}
+
+// Returns customers grouped and sorted by highest routeOrdering first (LIFO packing order):
+// higher routeOrdering = last delivery stop = loaded first into the van = top of the list.
+// Customer positions are fixed for the entire session — only styling changes when a customer
+// is complete, preventing disorienting jumps as items get ticked off.
 function sortedCustomers(orders) {
-  const customerMap = {};
-  orders.forEach(o => {
-    if (!customerMap[o.customer]) {
-      customerMap[o.customer] = { orders: [], maxOrdering: 0 };
+  const customerIndex = {};
+  orders.forEach(order => {
+    if (!customerIndex[order.customer]) {
+      customerIndex[order.customer] = { orders: [], maxOrdering: 0 };
     }
-    customerMap[o.customer].orders.push(o);
-    if (o.routeOrdering > customerMap[o.customer].maxOrdering) {
-      customerMap[o.customer].maxOrdering = o.routeOrdering;
+    customerIndex[order.customer].orders.push(order);
+    if (order.routeOrdering > customerIndex[order.customer].maxOrdering) {
+      customerIndex[order.customer].maxOrdering = order.routeOrdering;
     }
   });
-  return Object.entries(customerMap).sort((a, b) => b[1].maxOrdering - a[1].maxOrdering);
+  return Object.entries(customerIndex).sort((a, b) => b[1].maxOrdering - a[1].maxOrdering);
 }
 
 // ─── SUMMARY (SORTING STAGE) ──────────────────────────────────
 function toggleSummary() {
-  summaryOpen = !summaryOpen;
-  document.getElementById('summaryItems').classList.toggle('open', summaryOpen);
-  document.getElementById('summaryChevron').classList.toggle('open', summaryOpen);
+  isSummaryOpen = !isSummaryOpen;
+  document.getElementById('summaryItems').classList.toggle('open', isSummaryOpen);
+  document.getElementById('summaryChevron').classList.toggle('open', isSummaryOpen);
 }
 
 function renderSummary(orders) {
   const route        = orders[0].route;
-  const routeSummary = summaryChecked[route] || {};
+  const routeSummary = summaryTypeChecked[route] || {};
 
   // Total quantity per product type across all orders on this route
-  const totals = {};
-  orders.forEach(o => { totals[o.ware] = (totals[o.ware] || 0) + o.qty; });
+  const productTotals = {};
+  orders.forEach(order => { productTotals[order.ware] = (productTotals[order.ware] || 0) + order.qty; });
 
   // Unchecked types first (by qty), then checked types (by qty)
-  const all = Object.entries(totals).sort((a, b) => {
-    const byQty = summarySort === 'qty-desc' ? b[1] - a[1] : a[1] - b[1];
+  const allProducts = Object.entries(productTotals).sort((a, b) => {
+    const byQty = summaryProductSort === 'qty-desc' ? b[1] - a[1] : a[1] - b[1];
     return byQty !== 0 ? byQty : a[0].localeCompare(b[0]);
   });
   document.getElementById('summarySortBtn').textContent =
-    summarySort === 'qty-desc' ? 'QTY ↓' : 'QTY ↑';
-  const unchecked = all.filter(([w]) => !routeSummary[w]);
-  const doneItems = all.filter(([w]) =>  routeSummary[w]);
-  const entries   = [...unchecked, ...doneItems];
+    summaryProductSort === 'qty-desc' ? 'QTY ↓' : 'QTY ↑';
+  const pendingProducts   = allProducts.filter(([w]) => !routeSummary[w]);
+  const completedProducts = allProducts.filter(([w]) =>  routeSummary[w]);
+  const sortedProducts    = [...pendingProducts, ...completedProducts];
 
   document.getElementById('summarySubtitle').textContent =
-    `${doneItems.length}/${entries.length} types sorted`;
+    `${completedProducts.length}/${sortedProducts.length} types sorted`;
 
-  const box = document.getElementById('summaryItems');
+  const summaryItemsEl = document.getElementById('summaryItems');
 
   // Ware name is stored in data-ware (HTML-encoded) — no inline JS quoting needed.
   // The label wraps the checkbox so the entire row is a valid tap target.
-  box.innerHTML = entries.map(([ware, qty]) => {
-    const isCk     = !!routeSummary[ware];
-    const safeId   = 'sum-' + ware.replace(/[^a-zA-Z0-9]/g, '-');
-    const safeWare = ware.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+  summaryItemsEl.innerHTML = sortedProducts.map(([ware, qty]) => {
+    const isChecked      = !!routeSummary[ware];
+    const safeElementId  = 'sum-' + ware.replace(/[^a-zA-Z0-9]/g, '-');
+    const htmlSafeWareName = ware.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
     return `
-      <div class="summary-row ${isCk ? 's-checked' : ''}" id="${safeId}" data-ware="${safeWare}">
+      <div class="summary-row ${isChecked ? 's-checked' : ''}" id="${safeElementId}" data-ware="${htmlSafeWareName}">
         <label>
           <div class="summary-checkbox-area">
-            <input type="checkbox" name="${safeId}" ${isCk ? 'checked' : ''}>
+            <input type="checkbox" name="${safeElementId}" ${isChecked ? 'checked' : ''}>
           </div>
           <div class="summary-label-content">
             <span class="summary-ware">${ware}</span>
@@ -378,8 +422,8 @@ function renderSummary(orders) {
       </div>`;
   }).join('');
 
-  box.classList.toggle('open', summaryOpen);
-  document.getElementById('summaryChevron').classList.toggle('open', summaryOpen);
+  summaryItemsEl.classList.toggle('open', isSummaryOpen);
+  document.getElementById('summaryChevron').classList.toggle('open', isSummaryOpen);
   document.getElementById('summaryBox').style.display = 'block';
 }
 
@@ -388,10 +432,12 @@ document.getElementById('summaryItems').addEventListener('change', e => {
   if (!e.target.matches('input[type="checkbox"]')) return;
   const row   = e.target.closest('.summary-row');
   const ware  = row.dataset.ware;
-  const route = sel.value;
-  if (!summaryChecked[route]) summaryChecked[route] = {};
-  summaryChecked[route][ware] = !summaryChecked[route][ware];
-  if (summaryChecked[route][ware]) {
+  const route = routeDropdown.value;
+  if (!summaryTypeChecked[route]) summaryTypeChecked[route] = {};
+  summaryTypeChecked[route][ware] = !summaryTypeChecked[route][ware];
+  // Summary items are stored in Firebase under "SUMMARY|{route}|{ware}" to share
+  // the /statuses endpoint with order items. The prefix lets applyStatusRows tell them apart.
+  if (summaryTypeChecked[route][ware]) {
     postStatus({ orderNum: 'SUMMARY|' + route + '|' + ware, route, customer: '', status: 'checked' });
   } else {
     deleteStatus('SUMMARY|' + route + '|' + ware);
@@ -402,48 +448,49 @@ document.getElementById('summaryItems').addEventListener('change', e => {
 // ─── ORDER LIST ───────────────────────────────────────────────
 function renderOrders(orders) {
   // Preserve scroll position — don't jump to top on every checkbox tap
-  const content      = document.getElementById('content');
-  const scrollY      = window.scrollY;
-  const route        = orders[0].route;
-  const routeChecked = checked[route] || {};
-  const customers    = sortedCustomers(orders);
-  const allDone      = orders.every(o => routeChecked[o.itemId]);
+  const contentEl       = document.getElementById('content');
+  const scrollPosition  = window.scrollY;
+  const route           = orders[0].route;
+  const checkedForRoute = itemChecked[route] || {};
+  const missingForRoute = itemMissingData[route] || {};
+  const customerGroups  = sortedCustomers(orders);
+  const isRouteComplete = orders.every(order => isItemResolved(route, order.itemId));
 
   let html = '';
 
-  if (allDone && orders.length > 0) {
+  if (isRouteComplete && orders.length > 0) {
     html += `<div class="all-done"><div class="icon">✅</div><p>Route complete!</p></div>`;
   }
 
   // ─── CUSTOMER GROUP ──────────────────────────────────────────
-  customers.forEach(([customer, { orders: custOrders }]) => {
-    const custDone    = custOrders.filter(o => routeChecked[o.itemId]).length;
-    const allCustDone = custDone === custOrders.length;
-    const effectiveDone = allCustDone;
-    const inProgress    = !effectiveDone && custDone > 0;
+  customerGroups.forEach(([customer, { orders: custOrders }]) => {
+    const completedCount     = custOrders.filter(order => isItemResolved(route, order.itemId)).length;
+    const isCustomerComplete = completedCount === custOrders.length;
+    const isInProgress       = !isCustomerComplete && completedCount > 0;
 
     html += `
-      <div class="customer-group ${effectiveDone ? 'cg-done' : inProgress ? 'cg-in-progress' : ''}">
+      <div class="customer-group ${isCustomerComplete ? 'cg-done' : isInProgress ? 'cg-in-progress' : ''}">
         <div class="customer-header">
           <span class="customer-name">${customer}</span>
-          ${inProgress ? '<span class="status-pip"></span>' : ''}
-          <span class="customer-tally ${effectiveDone ? 'tally-done' : ''}">${custDone}/${custOrders.length}</span>
+          ${isInProgress ? '<span class="status-pip"></span>' : ''}
+          <span class="customer-tally ${isCustomerComplete ? 'tally-done' : ''}">${completedCount}/${custOrders.length}</span>
         </div>
         <div class="customer-orders">`;
 
-    // Pending items first, checked items sink to bottom — dept-aware sub-grouping
-    const depts = [...new Set(custOrders.map(o => o.dept))];
+    // Pending items first, resolved items sink to bottom — dept-aware sub-grouping.
+    // depts.length <= 1 is a fast path: skip the dept divider overhead for most customers.
+    const depts = [...new Set(custOrders.map(order => order.dept))];
     if (depts.length <= 1) {
-      const pending = custOrders.filter(o => !routeChecked[o.itemId]);
-      const done    = custOrders.filter(o =>  routeChecked[o.itemId]);
-      [...pending, ...done].forEach(o => { html += cardHTML(o, routeChecked); });
+      const pending = custOrders.filter(order => !isItemResolved(route, order.itemId));
+      const done    = custOrders.filter(order =>  isItemResolved(route, order.itemId));
+      [...pending, ...done].forEach(order => { html += cardHTML(order, checkedForRoute, missingForRoute); });
     } else {
       depts.forEach(dept => {
-        const deptOrders = custOrders.filter(o => o.dept === dept);
-        const pending    = deptOrders.filter(o => !routeChecked[o.itemId]);
-        const done       = deptOrders.filter(o =>  routeChecked[o.itemId]);
+        const deptOrders = custOrders.filter(order => order.dept === dept);
+        const pending    = deptOrders.filter(order => !isItemResolved(route, order.itemId));
+        const done       = deptOrders.filter(order =>  isItemResolved(route, order.itemId));
         html += `<div class="dept-divider">${dept || '—'}</div>`;
-        [...pending, ...done].forEach(o => { html += cardHTML(o, routeChecked); });
+        [...pending, ...done].forEach(order => { html += cardHTML(order, checkedForRoute, missingForRoute); });
       });
     }
 
@@ -451,111 +498,280 @@ function renderOrders(orders) {
   });
 
   html += `<button class="reset-btn">↺ Reset checklist</button>`;
-  content.innerHTML = html;
+  contentEl.innerHTML = html;
 
-  window.scrollTo({ top: scrollY, behavior: 'instant' });
+  window.scrollTo({ top: scrollPosition, behavior: 'instant' });
 }
 
 // ─── ORDER CARD ───────────────────────────────────────────────
 function supplierIconHTML(supplier) {
-  const s = supplier.toLowerCase();
-  if (s.includes('bakehuset')) return `<img class="supplier-icon" src="logo.svg" alt="Bakehuset">`;
-  if (s.includes('sandnes'))   return `<img class="supplier-icon" src="sandnes%20bakeri.png" alt="Sandnes Bakeri">`;
+  const supplierLower = supplier.toLowerCase();
+  if (supplierLower.includes('bakehuset')) return `<img class="supplier-icon" src="logo.svg" alt="Bakehuset">`;
+  if (supplierLower.includes('sandnes'))   return `<img class="supplier-icon" src="sandnes%20bakeri.png" alt="Sandnes Bakeri">`;
   return '';
 }
 
 // orderNum is stored in data-order (HTML-encoded) — no inline JS quoting needed.
-function cardHTML(o, routeChecked) {
-  const isCk = !!routeChecked[o.itemId];
+function cardHTML(order, checkedForRoute, missingForRoute = {}) {
+  const isChecked   = !!checkedForRoute[order.itemId];
+  const missingData = missingForRoute[order.itemId]; // undefined if not missing
+  const isMissing   = !!missingData;
+  const isResolved  = isMissing && order.acceptAlts && missingData.replacementWare;
+
+  let cardClass = '';
+  if (isChecked)        cardClass = 'checked';
+  else if (isResolved)  cardClass = 'missing-resolved';
+  else if (isMissing)   cardClass = 'missing';
+
+  // Missing row rendered below the label
+  let missingRowHTML = '';
+  if (isMissing) {
+    const { qtyMissing, replacementWare } = missingData;
+    const itemDataAttr = `data-item="${order.itemId}"`;
+    if (!order.acceptAlts) {
+      // No alternatives — show info + qty-only button
+      const infoText = qtyMissing ? `No alternatives &middot; ${qtyMissing} missing` : 'No alternatives';
+      missingRowHTML = `
+      <div class="missing-row">
+        <span class="missing-info">${infoText}</span>
+        <button class="missing-detail-btn" ${itemDataAttr}>Note qty</button>
+      </div>`;
+    } else if (!replacementWare) {
+      // Alts allowed, no replacement noted yet
+      missingRowHTML = `
+      <div class="missing-row">
+        <button class="missing-detail-btn" ${itemDataAttr}>+ Note replacement</button>
+      </div>`;
+    } else {
+      // Replacement entered
+      const qtySummary = qtyMissing ? `Missing ${qtyMissing} ` : 'Missing ';
+      missingRowHTML = `
+      <div class="missing-row">
+        <span class="missing-info">${qtySummary}&rarr; ${replacementWare}</span>
+        <button class="missing-detail-btn missing-edit-btn" ${itemDataAttr}>&#9998;</button>
+      </div>`;
+    }
+  }
+
   return `
-    <div class="order-card ${isCk ? 'checked' : ''}" data-item="${o.itemId}">
+    <div class="order-card ${cardClass}" data-item="${order.itemId}">
       <label>
         <div class="checkbox-area">
-          <input type="checkbox" name="ord-${o.itemId}" ${isCk ? 'checked' : ''}>
+          <input type="checkbox" name="ord-${order.itemId}" ${isChecked ? 'checked' : ''}>
         </div>
         <div class="order-info">
           <div class="order-top">
-            <span class="ware-name">${o.ware}</span>
-            <span class="qty-badge">QTY: ${o.qty}</span>
-            ${supplierIconHTML(o.supplier)}
+            <span class="ware-name">${order.ware}</span>
+            <span class="qty-badge">QTY: ${order.qty}</span>
+            ${supplierIconHTML(order.supplier)}
           </div>
           <div class="order-meta">
             <span class="meta-item">
               <span class="meta-label">Order</span>&nbsp;
-              <span class="meta-value">${o.orderNum}</span>
+              <span class="meta-value">${order.orderNum}</span>
             </span>
             <span class="meta-item">
               <span class="meta-label">Supplier</span>&nbsp;
-              <span class="meta-value">${o.supplier}</span>
+              <span class="meta-value">${order.supplier}</span>
             </span>
           </div>
-          ${o.acceptAlts ? '<div class="alts-badge">&#x21C6; Accepts alternatives</div>' : ''}
+          ${order.acceptAlts ? '<div class="alts-badge">&#x21C6; Accepts alternatives</div>' : ''}
         </div>
-      </label>
+      </label>${missingRowHTML}
     </div>`;
 }
 
 // Delegated listener on content — survives innerHTML replacement in renderOrders.
-// Handles both order-card checkboxes and the reset button.
+// Handles order-card checkboxes. On a missing card: tap clears missing → unchecked.
 document.getElementById('content').addEventListener('change', async e => {
   if (!e.target.matches('input[type="checkbox"]')) return;
-  const card   = e.target.closest('.order-card');
-  if (!card) return;
-  const itemId = card.dataset.item;
-  const route  = sel.value;
-  if (!checked[route]) checked[route] = {};
-  checked[route][itemId] = !checked[route][itemId];
+  const orderCard = e.target.closest('.order-card');
+  if (!orderCard) return;
+  const itemId = orderCard.dataset.item;
+  const route  = routeDropdown.value;
 
-  const orders       = getRouteOrders(route);
-  const routeChecked = checked[route];
+  if (!itemChecked[route])     itemChecked[route]     = {};
+  if (!itemMissingData[route]) itemMissingData[route] = {};
+
+  const routeOrders = getRouteOrders(route);
+  const tappedOrder = routeOrders.find(order => order.itemId === itemId);
+
+  // If the card is in a missing state, a tap clears missing → unchecked (not checked)
+  if (itemMissingData[route][itemId]) {
+    delete itemMissingData[route][itemId];
+    itemChecked[route][itemId] = false;
+    if (tappedOrder && FIREBASE_URL) {
+      console.log(`[BreadRun] Missing cleared by tap — route=${route} ware="${tappedOrder.ware}"`);
+      deleteStatus(tappedOrder.itemKey);
+    }
+    updateStats(routeOrders);
+    renderOrders(routeOrders);
+    return;
+  }
+
+  itemChecked[route][itemId] = !itemChecked[route][itemId];
 
   // POST individual item state
-  const changedItem = orders.find(o => o.itemId === itemId);
-  if (changedItem && FIREBASE_URL) {
-    const isNowChecked = !!checked[route][itemId];
-    console.log(`[BreadRun] Checkbox toggled — route=${route} customer="${changedItem.customer}" ware="${changedItem.ware}" → ${isNowChecked ? 'checked' : 'unchecked'}`);
+  if (tappedOrder && FIREBASE_URL) {
+    const isNowChecked = !!itemChecked[route][itemId];
+    console.log(`[BreadRun] Checkbox toggled — route=${route} customer="${tappedOrder.customer}" ware="${tappedOrder.ware}" → ${isNowChecked ? 'checked' : 'unchecked'}`);
 
-    // After a customer is fully done, show overlay, PUT then GET to pick up
-    // any other drivers' changes before re-rendering.
-    const custOrders  = orders.filter(o => o.customer === changedItem.customer);
-    const allCustDone = custOrders.every(o => checked[route][o.itemId]);
-    if (allCustDone) {
-      const syncOverlay = document.getElementById('syncOverlay');
-      syncOverlay.classList.add('open');
+    // When a customer is fully done: show overlay, await the PUT, then GET fresh state
+    // before re-rendering. This picks up any changes made by other drivers in the interim
+    // and prevents a flash of stale state if two drivers are ticking the same route.
+    const customerOrders    = routeOrders.filter(order => order.customer === tappedOrder.customer);
+    const isCustomerComplete = customerOrders.every(order => isItemResolved(route, order.itemId));
+    if (isCustomerComplete) {
+      const syncOverlayEl = document.getElementById('syncOverlay');
+      syncOverlayEl.classList.add('open');
       if (isNowChecked) {
-        await postStatus({ orderNum: changedItem.itemKey, route, customer: changedItem.customer, status: 'checked' });
+        await postStatus({ orderNum: tappedOrder.itemKey, route, customer: tappedOrder.customer, status: 'checked' });
       } else {
-        await deleteStatus(changedItem.itemKey);
+        await deleteStatus(tappedOrder.itemKey);
       }
       await fetchStatuses(); // GET after PUT/DELETE — no race, picks up other drivers' changes
-      syncOverlay.classList.remove('open');
+      syncOverlayEl.classList.remove('open');
       return; // fetchStatuses() → renderCurrentRoute() handles the re-render
     } else {
       if (isNowChecked) {
-        postStatus({ orderNum: changedItem.itemKey, route, customer: changedItem.customer, status: 'checked' });
+        postStatus({ orderNum: tappedOrder.itemKey, route, customer: tappedOrder.customer, status: 'checked' });
       } else {
-        deleteStatus(changedItem.itemKey);
+        deleteStatus(tappedOrder.itemKey);
       }
     }
   }
 
-  updateStats(orders);
-  renderOrders(orders);
+  updateStats(routeOrders);
+  renderOrders(routeOrders);
 });
 
+// Delegated click handler — reset button + missing detail button
 document.getElementById('content').addEventListener('click', e => {
-  if (e.target.closest('.reset-btn')) askReset();
+  if (e.target.closest('.reset-btn')) { askReset(); return; }
+  const btn = e.target.closest('.missing-detail-btn');
+  if (btn) { e.stopPropagation(); openMissingDetail(btn.dataset.item); }
 });
+
+// ─── LONG PRESS — toggle missing state ────────────────────────
+document.getElementById('content').addEventListener('pointerdown', e => {
+  const checkboxArea = e.target.closest('.checkbox-area');
+  if (!checkboxArea) return;
+  const orderCard = checkboxArea.closest('.order-card');
+  if (!orderCard) return;
+
+  const startX = e.clientX, startY = e.clientY;
+
+  const timer = setTimeout(() => {
+    navigator.vibrate?.(30);
+
+    const itemId = orderCard.dataset.item;
+    const route  = routeDropdown.value;
+    if (!itemMissingData[route]) itemMissingData[route] = {};
+    if (!itemChecked[route])     itemChecked[route]     = {};
+
+    const routeOrders = getRouteOrders(route);
+    const order = routeOrders.find(o => o.itemId === itemId);
+    if (!order) return;
+
+    if (itemMissingData[route][itemId]) {
+      // Already missing — long press clears it
+      delete itemMissingData[route][itemId];
+      itemChecked[route][itemId] = false;
+      if (FIREBASE_URL) deleteStatus(order.itemKey);
+      console.log(`[BreadRun] Long press: missing cleared — route=${route} ware="${order.ware}"`);
+    } else {
+      // Not missing — mark as missing
+      itemChecked[route][itemId] = false;
+      itemMissingData[route][itemId] = { qtyMissing: null, replacementWare: null };
+      if (FIREBASE_URL) {
+        postStatus({ orderNum: order.itemKey, route, customer: order.customer, status: 'missing' });
+      }
+      console.log(`[BreadRun] Long press: marked missing — route=${route} ware="${order.ware}"`);
+    }
+
+    renderOrders(routeOrders);
+  }, 500);
+
+  const cancel = () => clearTimeout(timer);
+  const onMove = ev => {
+    if (Math.abs(ev.clientX - startX) > 10 || Math.abs(ev.clientY - startY) > 10) {
+      clearTimeout(timer);
+    }
+  };
+  document.addEventListener('pointermove', onMove, { once: false });
+  document.addEventListener('pointerup',     cancel, { once: true });
+  document.addEventListener('pointercancel', cancel, { once: true });
+  // Clean up move listener once pointer is released
+  const cleanup = () => document.removeEventListener('pointermove', onMove);
+  document.addEventListener('pointerup',     cleanup, { once: true });
+  document.addEventListener('pointercancel', cleanup, { once: true });
+});
+
+// ─── MISSING DETAIL SHEET ─────────────────────────────────────
+function openMissingDetail(itemId) {
+  const route = routeDropdown.value;
+  const order = getRouteOrders(route).find(o => o.itemId === itemId);
+  if (!order) return;
+
+  missingDetailTarget = { route, itemId, acceptAlts: order.acceptAlts };
+
+  document.getElementById('detailWareName').textContent = order.ware;
+
+  const existingData = (itemMissingData[route] || {})[itemId] || {};
+  const qtyInput = document.getElementById('detailQtyMissing');
+  const replInput = document.getElementById('detailReplacementWare');
+  qtyInput.value  = existingData.qtyMissing      || '';
+  replInput.value = existingData.replacementWare || '';
+
+  const replRow = document.getElementById('detailReplacementRow');
+  replRow.style.display = order.acceptAlts ? '' : 'none';
+
+  document.getElementById('missingDetailOverlay').classList.add('open');
+  qtyInput.focus();
+}
+
+function closeMissingDetail() {
+  document.getElementById('missingDetailOverlay').classList.remove('open');
+  missingDetailTarget = null;
+}
+
+function saveMissingDetail() {
+  if (!missingDetailTarget) return;
+  const { route, itemId, acceptAlts } = missingDetailTarget;
+
+  const qtyRaw  = document.getElementById('detailQtyMissing').value.trim();
+  const replRaw = document.getElementById('detailReplacementWare').value.trim();
+
+  const qtyMissing      = qtyRaw  ? parseInt(qtyRaw, 10) : null;
+  const replacementWare = (acceptAlts && replRaw) ? replRaw : null;
+
+  if (!itemMissingData[route]) itemMissingData[route] = {};
+  itemMissingData[route][itemId] = { qtyMissing, replacementWare };
+
+  const order = getRouteOrders(route).find(o => o.itemId === itemId);
+  if (order && FIREBASE_URL) {
+    postStatus({
+      orderNum: order.itemKey,
+      route,
+      customer: order.customer,
+      status: 'missing',
+      qtyMissing,
+      replacementWare,
+    });
+  }
+
+  closeMissingDetail();
+  renderCurrentRoute();
+}
 
 // ─── STATS BAR ────────────────────────────────────────────────
 function updateStats(orders) {
-  const route        = orders[0].route;
-  const routeChecked = checked[route] || {};
-  const doneCount    = orders.filter(o => routeChecked[o.itemId]).length;
-  const totalQty     = orders.reduce((s, o) => s + o.qty, 0);
+  const route          = orders[0].route;
+  const completedCount = orders.filter(order => isItemResolved(route, order.itemId)).length;
+  const totalUnits      = orders.reduce((s, order) => s + order.qty, 0);
   document.getElementById('statTotal').textContent = orders.length;
-  document.getElementById('statDone').textContent  = doneCount;
-  document.getElementById('statQty').textContent   = totalQty;
+  document.getElementById('statDone').textContent  = completedCount;
+  document.getElementById('statQty').textContent   = totalUnits;
 }
 
 // ─── RESET WITH CONFIRMATION ──────────────────────────────────
@@ -569,10 +785,11 @@ function closeConfirm() {
 
 function doReset() {
   closeConfirm();
-  const route  = sel.value;
+  const route  = routeDropdown.value;
   const orders = getRouteOrders(route);
-  checked[route]        = {};
-  summaryChecked[route] = {};
+  itemChecked[route]        = {};
+  itemMissingData[route]    = {};
+  summaryTypeChecked[route] = {};
   updateStats(orders);
   renderSummary(orders);
   renderOrders(orders);
@@ -582,22 +799,22 @@ function doReset() {
 // Clears all Firebase entries for a route via a single PATCH with null values.
 async function resetFirebaseRoute(route, orders) {
   if (!FIREBASE_URL) return;
-  const patch = {};
-  orders.forEach(o => { patch[encodeURIComponent(o.itemKey)] = null; });
-  const wares = [...new Set(orders.map(o => o.ware))];
-  wares.forEach(w => { patch[encodeURIComponent('SUMMARY|' + route + '|' + w)] = null; });
+  const nullPatch = {};
+  orders.forEach(order => { nullPatch[encodeURIComponent(order.itemKey)] = null; });
+  const wares = [...new Set(orders.map(order => order.ware))];
+  wares.forEach(w => { nullPatch[encodeURIComponent('SUMMARY|' + route + '|' + w)] = null; });
   try {
     await fetch(`${FIREBASE_URL}/statuses.json`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patch),
+      body: JSON.stringify(nullPatch),
     });
-    const ts = Date.now();
-    lastKnownModified = ts;
+    const serverTimestamp = Date.now();
+    lastFirebaseWriteTime = serverTimestamp;
     fetch(`${FIREBASE_URL}/lastModified.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(ts),
+      body: JSON.stringify(serverTimestamp),
     });
   } catch (err) {
     console.warn('[BreadRun] Could not reset Firebase route:', err.message);
@@ -611,11 +828,16 @@ document.getElementById('routeSelect').addEventListener('change', loadRoute);
 document.querySelector('.summary-toggle').addEventListener('click', toggleSummary);
 document.getElementById('summarySortBtn').addEventListener('click', e => {
   e.stopPropagation();  // prevent triggering expand/collapse on the parent
-  summarySort = summarySort === 'qty-desc' ? 'qty-asc' : 'qty-desc';
-  renderSummary(getRouteOrders(sel.value));
+  summaryProductSort = summaryProductSort === 'qty-desc' ? 'qty-asc' : 'qty-desc';
+  renderSummary(getRouteOrders(routeDropdown.value));
 });
 document.querySelector('.confirm-cancel').addEventListener('click', closeConfirm);
 document.querySelector('.confirm-ok').addEventListener('click', doReset);
 document.getElementById('confirmOverlay').addEventListener('click', function (e) {
   if (e.target === this) closeConfirm();
+});
+document.querySelector('.missing-detail-cancel').addEventListener('click', closeMissingDetail);
+document.querySelector('.missing-detail-save').addEventListener('click', saveMissingDetail);
+document.getElementById('missingDetailOverlay').addEventListener('click', function (e) {
+  if (e.target === this) closeMissingDetail();
 });

@@ -607,6 +607,152 @@ input[type="checkbox"]:checked::after {
   padding-top: 4px;
 }
 
+/* ── MISSING STATE ──────────────────────────────────────────── */
+.order-card.missing {
+  border-left-color: #bf4040;
+  background: #281818;
+}
+.order-card.missing-resolved {
+  border-left-color: var(--accent);
+  background: #26230e;
+}
+
+/* Suppress long-press context menu on mobile */
+.order-card .checkbox-area {
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+/* Checkbox border on missing card; show ! instead of checkmark */
+.order-card.missing input[type="checkbox"],
+.order-card.missing-resolved input[type="checkbox"] {
+  border-color: #bf4040;
+}
+.order-card.missing-resolved input[type="checkbox"] {
+  border-color: var(--accent-dim);
+}
+.order-card.missing input[type="checkbox"]::after,
+.order-card.missing-resolved input[type="checkbox"]::after {
+  content: '!';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: #bf4040;
+  border: none;
+  width: auto;
+  height: auto;
+}
+.order-card.missing-resolved input[type="checkbox"]::after {
+  color: var(--accent);
+}
+
+/* Ware name on missing card — red tint, no strikethrough */
+.order-card.missing .ware-name {
+  color: #e07070;
+  text-decoration: none;
+}
+.order-card.missing-resolved .ware-name {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+/* Row below card label showing missing info + action button */
+/* Left-pad to align with .order-info (checkbox-area width = 56px) */
+.missing-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px 10px 56px;
+  flex-wrap: wrap;
+}
+
+/* Inline summary text: "No alternatives · 2 missing" or "Missing 2 → Ciabatta" */
+.missing-info {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--muted);
+  flex: 1;
+}
+
+/* Small action button inside the missing row */
+.missing-detail-btn {
+  background: rgba(191, 64, 64, 0.15);
+  border: 1px solid #7a3030;
+  color: #e07070;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 6px 12px;
+  border-radius: 3px;
+  cursor: pointer;
+  min-height: 44px;
+  min-width: 44px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.missing-detail-btn:active { background: rgba(191, 64, 64, 0.3); }
+
+.missing-resolved .missing-detail-btn {
+  background: rgba(232, 200, 64, 0.12);
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+.missing-resolved .missing-detail-btn:active {
+  background: rgba(232, 200, 64, 0.25);
+}
+
+/* ── MISSING DETAIL SHEET ───────────────────────────────────── */
+.missing-detail-sheet .confirm-title {
+  margin-bottom: 4px;
+}
+
+#detailWareName {
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 20px;
+  letter-spacing: 0.04em;
+}
+
+.missing-detail-field {
+  margin-bottom: 16px;
+}
+
+.missing-detail-label {
+  display: block;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.missing-detail-sheet input[type="number"],
+.missing-detail-sheet input[type="text"] {
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+  border: 2px solid var(--border);
+  border-radius: 4px;
+  padding: 12px 14px;
+  font-family: 'DM Mono', monospace;
+  font-size: 16px;
+  letter-spacing: 0.03em;
+  min-height: 48px;
+}
+.missing-detail-sheet input[type="number"]:focus,
+.missing-detail-sheet input[type="text"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 /* ── RESPONSIVE (small phones) ──────────────────────────────── */
 @media (max-width: 380px) {
   .ware-name      { font-size: 16px; }
