@@ -22,6 +22,7 @@
       <p>Route Checklist</p>
     </div>
     <div class="header-actions">
+      <a class="missing-icon-btn" href="missing-report.html" title="Missing items report">!</a>
       <a class="info-btn" href="missing-report.html">Missing items</a>
       <a class="info-btn" href="project-map.html">How the magic is done</a>
       <button class="refresh-btn">↻ Refresh</button>
@@ -102,6 +103,22 @@
       </div>
     </div>
   </div>
+
+  <!-- FOOTER LEGEND -->
+  <footer class="app-footer">
+    <div class="footer-key">
+      <div class="key-item"><div class="key-swatch swatch-pending"></div><span>Pending</span></div>
+      <div class="key-item"><div class="key-swatch swatch-packed"></div><span>Packed</span></div>
+      <div class="key-item"><div class="key-swatch swatch-missing"></div><span>Missing</span></div>
+      <div class="key-item"><div class="key-swatch swatch-replaced"></div><span>Replaced</span></div>
+    </div>
+    <div class="footer-links">
+      <a class="footer-link" href="missing-report.html">Missing items report</a>
+      <a class="footer-link" href="tutorial.html">How to use</a>
+      <a class="footer-link" href="project-map.html">How the magic is done</a>
+    </div>
+    <div class="footer-meta">Last refreshed: <span id="lastRefreshed">—</span></div>
+  </footer>
 
   <script src="script.js"></script>
 </body>

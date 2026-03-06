@@ -171,6 +171,9 @@ async function fetchSheetData() {
 
     fetchStatuses(); // async — re-renders once statuses arrive; no-op if URL not set
 
+    const el = document.getElementById('lastRefreshed');
+    if (el) el.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
   } catch (err) {
     console.error('[BreadRun] Sheet fetch failed:', err);
     showMsg('⚠️', 'Could not load sheet — ' + err.message);

@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>How to use — Bread Run</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:         #1a1a18;
+      --surface:    #252520;
+      --border:     #3a3a32;
+      --accent:     #e8c840;
+      --accent-dim: #b09a28;
+      --text:       #f0ede0;
+      --muted:      #888878;
+      --done-bg:    #1a3520;
+      --done-text:  #888878;
+      --check:      #5abf6a;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Barlow Condensed', sans-serif;
+      min-height: 100vh;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--accent);
+      color: #1a1a18;
+      padding: 18px 20px 14px;
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      border-bottom: 3px solid #c8a820;
+    }
+    .logo-icon { font-size: 32px; line-height: 1; }
+    .header-text h1 {
+      font-size: 28px; font-weight: 900; letter-spacing: 0.04em;
+      line-height: 1; text-transform: uppercase;
+    }
+    .header-text p {
+      font-size: 13px; font-weight: 600; letter-spacing: 0.08em;
+      opacity: 0.65; text-transform: uppercase; font-family: 'DM Mono', monospace;
+    }
+    .back-btn {
+      margin-left: auto;
+      background: rgba(0,0,0,0.15);
+      border: 2px solid rgba(0,0,0,0.2);
+      color: #1a1a18;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      text-decoration: none;
+      padding: 8px 16px; border-radius: 3px;
+      min-height: 44px; display: flex; align-items: center;
+    }
+
+    /* ── CONTENT ── */
+    .wrap { max-width: 600px; margin: 0 auto; padding: 24px 16px 48px; }
+
+    .section { margin-bottom: 36px; }
+
+    .section-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted);
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+
+    /* ── WORKFLOW STEPS ── */
+    .steps { display: flex; flex-direction: column; gap: 12px; }
+
+    .step {
+      display: flex;
+      gap: 14px;
+      align-items: flex-start;
+    }
+
+    .step-num {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px; font-weight: 500;
+      color: var(--accent);
+      background: rgba(232,200,64,0.12);
+      border: 1px solid var(--accent-dim);
+      border-radius: 3px;
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .step-text {
+      font-size: 17px; font-weight: 600; line-height: 1.4;
+      padding-top: 3px;
+    }
+
+    .step-text small {
+      display: block;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px; color: var(--muted); font-weight: 400;
+      margin-top: 3px; letter-spacing: 0.03em;
+    }
+
+    /* ── DEMO CARDS ── */
+    .demo-cards { display: flex; flex-direction: column; gap: 10px; }
+
+    .demo-card {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      border-radius: 4px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .demo-stripe {
+      width: 5px;
+      align-self: stretch;
+      flex-shrink: 0;
+    }
+
+    .demo-card.state-pending  .demo-stripe { background: var(--accent); }
+    .demo-card.state-packed   .demo-stripe { background: var(--check); }
+    .demo-card.state-missing  .demo-stripe { background: #bf4040; }
+    .demo-card.state-replaced .demo-stripe { background: var(--accent); }
+
+    .demo-card.state-pending  { background: var(--surface); }
+    .demo-card.state-packed   { background: var(--done-bg); border-color: #2a3a2a; }
+    .demo-card.state-missing  { background: #281818; border-color: #4a2828; }
+    .demo-card.state-replaced { background: #26230e; border-color: #4a4020; }
+
+    .demo-body {
+      padding: 12px 14px;
+      flex: 1;
+    }
+
+    .demo-ware {
+      font-size: 17px; font-weight: 700; display: block; margin-bottom: 3px;
+    }
+    .state-packed   .demo-ware { color: var(--done-text); text-decoration: line-through; }
+    .state-missing  .demo-ware { color: #e07070; }
+    .state-replaced .demo-ware { color: var(--accent); }
+
+    .demo-desc {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px; color: var(--muted); letter-spacing: 0.03em;
+    }
+
+    .demo-check {
+      width: 48px; height: 48px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .demo-box {
+      width: 22px; height: 22px;
+      border-radius: 3px;
+      border: 2.5px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 700;
+    }
+
+    .state-packed   .demo-box { background: var(--check); border-color: var(--check); color: white; }
+    .state-missing  .demo-box { border-color: #bf4040; color: #bf4040; }
+    .state-replaced .demo-box { border-color: var(--accent-dim); color: var(--accent); }
+
+    /* ── MISSING REPORT LINK ── */
+    .report-link-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid #bf4040;
+      border-radius: 4px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text);
+    }
+    .report-link-box:active { background: #2a2a24; }
+
+    .report-link-label {
+      font-size: 17px; font-weight: 700;
+    }
+    .report-link-sub {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px; color: var(--muted); margin-top: 2px;
+    }
+    .report-link-arrow {
+      font-size: 20px; color: #bf4040; flex-shrink: 0;
+    }
+
+    @media (max-width: 380px) {
+      .header-text h1 { font-size: 22px; }
+      .step-text { font-size: 15px; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="logo-icon">🍞</div>
+    <div class="header-text">
+      <h1>How to use</h1>
+      <p>Bread Run</p>
+    </div>
+    <a class="back-btn" href="index.html">← Back</a>
+  </header>
+
+  <div class="wrap">
+
+    <!-- WORKFLOW -->
+    <div class="section">
+      <div class="section-label">Workflow</div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text">Select your route from the dropdown</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text">
+            Sorting Stage — tick each bread type as you sort it into the van
+            <small>Collapse it when done to get it out of the way</small>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text">
+            Tap any card to mark an item as packed
+            <small>Packed items sink to the bottom of their customer group</small>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-text">
+            Hold a card for half a second to flag it as missing
+            <small>Phone will vibrate to confirm. Hold again to undo.</small>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-text">
+            On a missing card — tap "Note replacement" to log a substitute
+            <small>Only available for items that accept alternatives</small>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARD STATES -->
+    <div class="section">
+      <div class="section-label">Card states</div>
+      <div class="demo-cards">
+
+        <div class="demo-card state-pending">
+          <div class="demo-check"><div class="demo-box"></div></div>
+          <div class="demo-stripe"></div>
+          <div class="demo-body">
+            <span class="demo-ware">Rugbrød</span>
+            <span class="demo-desc">Pending — waiting to be packed</span>
+          </div>
+        </div>
+
+        <div class="demo-card state-packed">
+          <div class="demo-check"><div class="demo-box">✓</div></div>
+          <div class="demo-stripe"></div>
+          <div class="demo-body">
+            <span class="demo-ware">Rugbrød</span>
+            <span class="demo-desc">Packed — all good</span>
+          </div>
+        </div>
+
+        <div class="demo-card state-missing">
+          <div class="demo-check"><div class="demo-box">!</div></div>
+          <div class="demo-stripe"></div>
+          <div class="demo-body">
+            <span class="demo-ware">Rugbrød</span>
+            <span class="demo-desc">Missing — flagged, no replacement yet</span>
+          </div>
+        </div>
+
+        <div class="demo-card state-replaced">
+          <div class="demo-check"><div class="demo-box">!</div></div>
+          <div class="demo-stripe"></div>
+          <div class="demo-body">
+            <span class="demo-ware">Rugbrød</span>
+            <span class="demo-desc">Missing — replacement noted (Ciabatta)</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- MISSING REPORT -->
+    <div class="section">
+      <div class="section-label">Missing items report</div>
+      <a class="report-link-box" href="missing-report.html">
+        <div>
+          <div class="report-link-label">View all missing items</div>
+          <div class="report-link-sub">All routes · updates on refresh</div>
+        </div>
+        <div class="report-link-arrow">→</div>
+      </a>
+    </div>
+
+  </div>
+
+</body>
+</html>

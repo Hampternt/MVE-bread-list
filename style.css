@@ -113,6 +113,25 @@ header {
 }
 .refresh-btn:active { background: rgba(0, 0, 0, 0.3); }
 
+/* Missing items icon button — always visible on mobile */
+.missing-icon-btn {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(191, 64, 64, 0.2);
+  border: 2px solid #7a3030;
+  color: #e07070;
+  font-family: 'DM Mono', monospace;
+  font-size: 20px;
+  font-weight: 700;
+  border-radius: 3px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.missing-icon-btn:active { background: rgba(191, 64, 64, 0.4); }
+
 /* ── ROUTE SELECTOR ─────────────────────────────────────────── */
 .route-selector {
   background: var(--surface);
@@ -751,6 +770,65 @@ input[type="checkbox"]:checked::after {
 .missing-detail-sheet input[type="text"]:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+/* ── FOOTER LEGEND ──────────────────────────────────────────── */
+.app-footer {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 20px 16px 40px;
+  border-top: 1px solid var(--border);
+}
+
+.footer-key {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.key-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Mini card swatch: left border + background shows the full visual state */
+.key-swatch {
+  width: 28px;
+  height: 18px;
+  border-left: 3px solid;
+  border-radius: 2px;
+}
+.swatch-pending  { border-color: var(--accent); background: var(--surface); }
+.swatch-packed   { border-color: var(--check);  background: var(--done-bg); }
+.swatch-missing  { border-color: #bf4040;        background: #281818; }
+.swatch-replaced { border-color: var(--accent); background: #26230e; }
+
+.footer-links {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.footer-link {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+  letter-spacing: 0.04em;
+}
+.footer-link:hover { color: var(--text); }
+
+.footer-meta {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: #555545;
+  letter-spacing: 0.04em;
 }
 
 /* ── RESPONSIVE (small phones) ──────────────────────────────── */
