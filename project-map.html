@@ -790,7 +790,7 @@ h1 {
           <div class="anat-dot" style="background:var(--orange)"></div>
           <div>
             <div class="anat-title" style="color:var(--orange)">Supplier logo</div>
-            <div class="anat-desc">Bakehuset (logo.svg) or Sandnes Bakeri (sandnes bakeri.png). Shown as an image on the card. Fades to 35% opacity when checked.</div>
+            <div class="anat-desc">Bakehuset (assets/logo.svg) or Sandnes Bakeri (assets/sandnes-bakeri.png). Shown as an image on the card. Fades to 35% opacity when checked.</div>
           </div>
         </div>
         <div class="anat-row">
@@ -980,19 +980,19 @@ h1 {
       </div>
 
       <div class="file o">
-        <div class="file-name">logo.svg</div>
+        <div class="file-name">assets/logo.svg</div>
         <div class="file-role">Bakehuset logo</div>
         <div class="file-desc">The MVE / Bakehuset brand logo. Shown as a small image on order cards when supplier = "bakehuset". If this file is missing, the card still works — supplier name shows as text.</div>
       </div>
 
       <div class="file o">
-        <div class="file-name">sandnes bakeri.png</div>
+        <div class="file-name">assets/sandnes-bakeri.png</div>
         <div class="file-role">Sandnes Bakeri logo</div>
         <div class="file-desc">Shown on cards when supplier = "sandnes bakeri". Both logos use a white drop-shadow filter and fade to 35% opacity when the card is checked.</div>
       </div>
 
       <div class="file p">
-        <div class="file-name">firebase-rules.json</div>
+        <div class="file-name">config/firebase-rules.json</div>
         <div class="file-role">Firebase security rules</div>
         <div class="file-desc">/statuses is public read, per-key write. Writes are validated: must have status, route, customer fields; status must be exactly "checked" or "unchecked". Deploy via Firebase console if rules change.</div>
       </div>
@@ -1004,7 +1004,7 @@ h1 {
       </div>
 
       <div class="file m">
-        <div class="file-name">Code.gs</div>
+        <div class="file-name">legacy/Code.gs</div>
         <div class="file-role">Archived · Apps Script</div>
         <div class="file-desc">The original write-back server, superseded by Firebase. Not connected to anything active. Kept for reference. Bound to a separate Google Sheet via .clasp.json.</div>
       </div>
