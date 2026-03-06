@@ -53,7 +53,7 @@ Orders are read from a Google Sheet published as CSV. The sheet must have at lea
 | 11 | Route | Route nickname shown in the dropdown |
 | 12 | Route Ordering | Integer — higher = last delivery stop (packed first) |
 
-To point the app at a different sheet, update `SHEET_CSV_URL` near the top of `index.html`:
+To point the app at a different sheet, update `SHEET_CSV_URL` near the top of `src/script.js`:
 
 ```js
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/YOUR_SHEET_ID/pub?output=csv";
@@ -67,10 +67,25 @@ The sheet must be published: **File → Share → Publish to web → CSV**.
 
 ```
 MVE-bread-list/
-├── index.html      # The entire app — HTML, CSS, and JS in one file
-├── oldindex.html   # Previous version (archived, not deployed)
-├── CNAME           # Custom domain config for GitHub Pages (mvebread.dblo.net)
-└── README.md       # This file
+├── index.html          # App shell (HTML structure only)
+├── tutorial.html       # How-to-use guide page
+├── missing-report.html # Missing items report page
+├── project-map.html    # Technical architecture explainer page
+├── src/
+│   ├── script.js       # All app logic — data fetching, rendering, state, Firebase sync
+│   └── style.css       # All styles — design tokens in :root at top
+├── assets/
+│   ├── bread-basket.svg    # App logo (header icon)
+│   ├── logo.svg            # Bakehuset supplier icon
+│   └── sandnes-bakeri.png  # Sandnes Bakeri supplier icon
+├── config/
+│   └── firebase-rules.json # Firebase Realtime Database security rules
+├── legacy/
+│   ├── Code.gs             # Google Apps Script (legacy, unused)
+│   ├── appsscript.json     # Apps Script project manifest
+│   └── .clasp.json         # clasp config for pushing Code.gs
+├── CNAME               # Custom domain config for GitHub Pages (mvebread.dblo.net)
+└── README.md           # This file
 ```
 
 The app is a single self-contained HTML file with no build step, no npm, and no external dependencies. It is hosted via **GitHub Pages**.
@@ -91,9 +106,10 @@ Push to the `master` / `main` branch. GitHub Pages picks it up automatically and
 
 ## Customising
 
-| What | Where in `index.html` |
-|------|-----------------------|
-| Sheet URL | `const SHEET_CSV_URL` (line ~550) |
-| Column mapping | `const COLS` object (lines ~555–570) |
-| Colour theme | CSS variables at the top of `<style>` |
-| App title / logo | `<header>` section in the HTML body |
+| What | Where |
+|------|-------|
+| Sheet URL | `SHEET_CSV_URL` const at top of `src/script.js` |
+| Firebase URL | `FIREBASE_URL` const at top of `src/script.js` |
+| Column mapping | `COLS` object at top of `src/script.js` |
+| Colour theme | CSS variables in `:root` at top of `src/style.css` |
+| App title / logo | `<header>` in `index.html` |
