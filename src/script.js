@@ -248,19 +248,40 @@ async function fetchStatuses() {
 }
 
 // Writes an individual item status to Firebase via PUT.
+// Firebase RTDB keys cannot contain:  . $ # [ ] /
+// Firebase REST also decodes %XX sequences in URL paths, so a key containing '/' encoded
+// as '%2F' gets decoded back to '/' and treated as a path separator (causing 401s).
+// Fix: double-encode all forbidden characters so Firebase stores their %-encoded form as
+// a literal key character instead of the actual character.
+// encodeURIComponent handles $, #, [, ] but leaves . and ' raw — we encode . manually.
+// decodeURIComponent in fetchStatuses decodes the stored keys back correctly on read.
+function firebaseKey(str) {
+  return encodeURIComponent(str)
+    .replace(/\./g,   '%252E')  // .  (not encoded by encodeURIComponent)
+    .replace(/%2F/gi, '%252F')  // /
+    .replace(/%24/gi, '%2524')  // $
+    .replace(/%23/gi, '%2523')  // #
+    .replace(/%5B/gi, '%255B')  // [
+    .replace(/%5D/gi, '%255D'); // ]
+}
+
 async function postStatus({ orderNum, route, customer, status, qtyMissing = null, replacementWare = null }) {
   if (!FIREBASE_URL) return;
-  const key = encodeURIComponent(orderNum);
+  const key = firebaseKey(orderNum);
   console.log(`[BreadRun] POST status — route=${route} customer="${customer}" item=${orderNum} status=${status}`);
   const body = { status, route, customer };
   if (qtyMissing      !== null) body.qtyMissing      = qtyMissing;
   if (replacementWare !== null) body.replacementWare = replacementWare;
   try {
-    await fetch(`${FIREBASE_URL}/statuses/${key}.json`, {
+    const res = await fetch(`${FIREBASE_URL}/statuses/${key}.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`[BreadRun] Firebase PUT denied — ${res.status} — key=${orderNum} body=${JSON.stringify(body)} — ${errText}`);
+    }
     // Stamp a lastModified timestamp so other clients can detect this change cheaply.
     const serverTimestamp = Date.now();
     lastFirebaseWriteTime = serverTimestamp;
@@ -277,9 +298,13 @@ async function postStatus({ orderNum, route, customer, status, qtyMissing = null
 // Deletes an individual item status from Firebase.
 async function deleteStatus(orderNum) {
   if (!FIREBASE_URL) return;
-  const key = encodeURIComponent(orderNum);
+  const key = firebaseKey(orderNum);
   try {
-    await fetch(`${FIREBASE_URL}/statuses/${key}.json`, { method: 'DELETE' });
+    const res = await fetch(`${FIREBASE_URL}/statuses/${key}.json`, { method: 'DELETE' });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`[BreadRun] Firebase DELETE denied — ${res.status} — key=${orderNum} — ${errText}`);
+    }
     const serverTimestamp = Date.now();
     lastFirebaseWriteTime = serverTimestamp;
     fetch(`${FIREBASE_URL}/lastModified.json`, {
@@ -802,9 +827,9 @@ function doReset() {
 async function resetFirebaseRoute(route, orders) {
   if (!FIREBASE_URL) return;
   const nullPatch = {};
-  orders.forEach(order => { nullPatch[encodeURIComponent(order.itemKey)] = null; });
+  orders.forEach(order => { nullPatch[order.itemKey] = null; });
   const wares = [...new Set(orders.map(order => order.ware))];
-  wares.forEach(w => { nullPatch[encodeURIComponent('SUMMARY|' + route + '|' + w)] = null; });
+  wares.forEach(w => { nullPatch['SUMMARY|' + route + '|' + w] = null; });
   try {
     await fetch(`${FIREBASE_URL}/statuses.json`, {
       method: 'PATCH',
