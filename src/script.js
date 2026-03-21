@@ -32,6 +32,12 @@ const COLS = {
   acceptAlts    : 13,  // Accept alternatives (TRUE/FALSE)
 };
 
+// ─── CRATE VISUALISATION ──────────────────────────────────────
+const CRATE_COLORS = [
+  '#e8c840','#5abf6a','#4a9ede','#e87840',
+  '#c45abf','#5abfbf','#e84040','#b0bf5a','#bf8a5a','#5a6abf'
+];
+
 // ─── STATE ────────────────────────────────────────────────────
 // itemChecked      — { route: { itemId: bool } } — which order cards are ticked
 // itemId is a session-local row index, not stored in Firebase; see itemKey below.
@@ -473,6 +479,71 @@ document.getElementById('summaryItems').addEventListener('change', e => {
   renderSummary(getRouteOrders(route));
 });
 
+// ─── CRATE VISUALISATION HELPERS ──────────────────────────────
+function getWareColors(orders) {
+  const wares = [...new Set(orders.map(o => o.ware))].sort();
+  const map = {};
+  wares.forEach((ware, i) => { map[ware] = CRATE_COLORS[i % CRATE_COLORS.length]; });
+  return map;
+}
+
+function buildCrateSlots(custOrders, wareColors) {
+  // Sum qty per ware, sort by qty desc
+  const qtyByWare = {};
+  custOrders.forEach(o => { qtyByWare[o.ware] = (qtyByWare[o.ware] || 0) + o.qty; });
+  const sorted = Object.entries(qtyByWare).sort((a, b) => b[1] - a[1]);
+
+  // Flat slots array of colors
+  const slots = [];
+  sorted.forEach(([ware, qty]) => {
+    const color = wareColors[ware] || '#888';
+    for (let i = 0; i < qty; i++) slots.push(color);
+  });
+
+  const total = slots.length;
+  let bigCount = Math.floor(total / 10);
+  const remainder = total % 10;
+  let smallCount = 0;
+  if (remainder > 5)       bigCount++;
+  else if (remainder > 0)  smallCount = 1;
+
+  const crates = [];
+  let idx = 0;
+  for (let c = 0; c < bigCount; c++) {
+    const crateSlots = [];
+    for (let s = 0; s < 10; s++) crateSlots.push(idx < slots.length ? slots[idx++] : null);
+    crates.push({ size: 10, slots: crateSlots });
+  }
+  if (smallCount) {
+    const crateSlots = [];
+    for (let s = 0; s < 5; s++) crateSlots.push(idx < slots.length ? slots[idx++] : null);
+    crates.push({ size: 5, slots: crateSlots });
+  }
+  return crates;
+}
+
+function crateVizHTML(crates) {
+  if (!crates.length) return '';
+  let html = '<div class="crate-bg">';
+  crates.forEach(crate => {
+    html += '<div class="crate">';
+    const rows = crate.size === 10 ? 2 : 1;
+    const cols = 5;
+    for (let r = 0; r < rows; r++) {
+      html += '<div class="crate-row">';
+      for (let c = 0; c < cols; c++) {
+        const color = crate.slots[r * cols + c];
+        if (color) html += `<div class="crate-slot" style="background:${color}"></div>`;
+        else        html += '<div class="crate-slot empty"></div>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
 // ─── ORDER LIST ───────────────────────────────────────────────
 function renderOrders(orders) {
   // Preserve scroll position — don't jump to top on every checkbox tap
@@ -483,6 +554,7 @@ function renderOrders(orders) {
   const missingForRoute = itemMissingData[route] || {};
   const customerGroups  = sortedCustomers(orders);
   const isRouteComplete = orders.every(order => isItemResolved(route, order.itemId));
+  const wareColors      = getWareColors(orders);
 
   let html = '';
 
@@ -498,6 +570,7 @@ function renderOrders(orders) {
 
     html += `
       <div class="customer-group ${isCustomerComplete ? 'cg-done' : isInProgress ? 'cg-in-progress' : ''}">
+        ${crateVizHTML(buildCrateSlots(custOrders, wareColors))}
         <div class="customer-header">
           <span class="customer-name">${customer}</span>
           ${isInProgress ? '<span class="status-pip"></span>' : ''}

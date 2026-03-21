@@ -335,10 +335,48 @@ select:focus { outline: none; border-color: var(--accent); }
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
+  position: relative;
 }
 .customer-group.cg-done { border-color: #2a2a25; opacity: 0.7; }
 
+/* ── CRATE VISUALISATION ─────────────────────────────────────── */
+.crate-bg {
+  position: absolute;
+  right: 8px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  pointer-events: none;
+  opacity: 0.28;
+  z-index: 0;
+}
+.crate {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px;
+  border: 1.5px solid var(--border);
+  border-radius: 3px;
+}
+.crate-row {
+  display: flex;
+  gap: 2px;
+}
+.crate-slot {
+  width: 9px;
+  height: 9px;
+  border-radius: 1px;
+  background: var(--border);
+}
+.crate-slot.empty {
+  opacity: 0.35;
+}
+
 .customer-header {
+  position: relative;
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -346,6 +384,10 @@ select:focus { outline: none; border-color: var(--accent); }
   padding: 10px 14px;
   border-bottom: 1px solid var(--border);
   gap: 10px;
+}
+.customer-orders {
+  position: relative;
+  z-index: 1;
 }
 .cg-done .customer-header { background: #222220; border-bottom-color: #2a2a25; }
 
