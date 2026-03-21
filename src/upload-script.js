@@ -96,7 +96,7 @@ function orderToFirestoreFields(order) {
 }
 
 async function batchWrite(writes) {
-  const url = `https://firestore.googleapis.com/v1/projects/mve-bread/databases/(default):batchWrite?key=${FIRESTORE_KEY}`;
+  const url = `https://firestore.googleapis.com/v1/projects/mve-bread/databases/(default)/documents:batchWrite?key=${FIRESTORE_KEY}`;
   const res = await fetch(url, {
     method : 'POST',
     headers: { 'Content-Type': 'application/json' },
