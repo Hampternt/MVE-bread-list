@@ -75,7 +75,7 @@ async function parseFile(file) {
 }
 
 // ─── FIREBASE AUTH (anonymous) ────────────────────────────
-// Firestore batchWrite requires a Firebase Auth ID token even with open rules.
+// Firestore REST writes require a Firebase Auth ID token.
 // We sign in anonymously and cache the token for the session.
 let _authToken = null;
 
@@ -114,19 +114,28 @@ function orderToFirestoreFields(order) {
   };
 }
 
-async function batchWrite(writes) {
+async function writeDoc(collection, id, fields) {
   const token = await getAuthToken();
-  const url   = `https://firestore.googleapis.com/v1/projects/mve-bread/databases/(default)/documents:batchWrite?key=${FIRESTORE_KEY}`;
+  const url   = `${FIRESTORE_BASE}/${collection}/${id}?key=${FIRESTORE_KEY}`;
   const res   = await fetch(url, {
-    method : 'POST',
+    method : 'PATCH',
     headers: {
       'Content-Type' : 'application/json',
       'Authorization': `Bearer ${token}`,
     },
-    body: JSON.stringify({ writes }),
+    body: JSON.stringify({ fields }),
   });
-  if (!res.ok) throw new Error(`batchWrite HTTP ${res.status}: ${await res.text()}`);
-  return res.json();
+  if (!res.ok) throw new Error(`write HTTP ${res.status}: ${await res.text()}`);
+}
+
+async function deleteDoc(collection, id) {
+  const token = await getAuthToken();
+  const url   = `${FIRESTORE_BASE}/${collection}/${id}?key=${FIRESTORE_KEY}`;
+  const res   = await fetch(url, {
+    method : 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
+  if (!res.ok && res.status !== 404) throw new Error(`delete HTTP ${res.status}: ${await res.text()}`);
 }
 
 async function listAllDocIds(collection) {
@@ -146,34 +155,19 @@ async function listAllDocIds(collection) {
   return ids;
 }
 
-async function deleteDocIds(collection, ids) {
-  const writes = ids.map(id => ({
-    delete: `projects/mve-bread/databases/(default)/documents/${collection}/${id}`,
-  }));
-  for (let i = 0; i < writes.length; i += 500) {
-    await batchWrite(writes.slice(i, i + 500));
-  }
-}
-
 // ─── UPLOAD FLOW (write-then-delete) ─────────────────────
 // Writes new docs first, then removes stale ones.
 // The collection is never empty during upload.
 async function uploadOrders(orders, collection) {
   setStatus('', `Writing ${orders.length} rows…`);
-
   const newDocIds = new Set(orders.map(docId));
+  const BATCH = 20;
 
-  // Step 1: write/upsert all new documents
-  const writeOps = orders.map(order => ({
-    update: {
-      name  : `projects/mve-bread/databases/(default)/documents/${collection}/${docId(order)}`,
-      fields: orderToFirestoreFields(order),
-    },
-  }));
-
-  for (let i = 0; i < writeOps.length; i += 500) {
-    setStatus('', `Writing rows ${i + 1}–${Math.min(i + 500, writeOps.length)} of ${writeOps.length}…`);
-    await batchWrite(writeOps.slice(i, i + 500));
+  // Step 1: write/upsert all documents in parallel batches
+  for (let i = 0; i < orders.length; i += BATCH) {
+    const chunk = orders.slice(i, i + BATCH);
+    setStatus('', `Writing rows ${i + 1}–${Math.min(i + BATCH, orders.length)} of ${orders.length}…`);
+    await Promise.all(chunk.map(order => writeDoc(collection, docId(order), orderToFirestoreFields(order))));
   }
 
   // Step 2: delete stale documents (those not in the new upload)
@@ -181,8 +175,8 @@ async function uploadOrders(orders, collection) {
   const existingIds = await listAllDocIds(collection);
   const toDelete    = existingIds.filter(id => !newDocIds.has(id));
 
-  if (toDelete.length) {
-    await deleteDocIds(collection, toDelete);
+  for (let i = 0; i < toDelete.length; i += BATCH) {
+    await Promise.all(toDelete.slice(i, i + BATCH).map(id => deleteDoc(collection, id)));
   }
 
   setStatus('success', `✓ Uploaded ${orders.length} rows to ${collection}. ${toDelete.length} stale row(s) removed.`);
