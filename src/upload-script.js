@@ -94,11 +94,11 @@ async function getAuthToken() {
 }
 
 // ─── FIRESTORE HELPERS ────────────────────────────────────
-// Document ID: URL-safe encoding of itemKey.
-// '/' is decoded as a path separator by the Firestore REST API, so we replace
-// it with '_' before encoding. The original itemKey is preserved as a field.
+// Returns the raw Firestore document ID (not URL-encoded).
+// '/' is replaced because Firestore REST treats %2F as a path separator.
+// URL-encoding happens in writeDoc/deleteDoc when building the fetch URL.
 function docId(order) {
-  return encodeURIComponent(order.itemKey.replace(/\//g, '_'));
+  return order.itemKey.replace(/\//g, '_');
 }
 
 function orderToFirestoreFields(order) {
@@ -118,7 +118,7 @@ function orderToFirestoreFields(order) {
 
 async function writeDoc(collection, id, fields) {
   const token = await getAuthToken();
-  const url   = `${FIRESTORE_BASE}/${collection}/${id}?key=${FIRESTORE_KEY}`;
+  const url   = `${FIRESTORE_BASE}/${collection}/${encodeURIComponent(id)}?key=${FIRESTORE_KEY}`;
   const res   = await fetch(url, {
     method : 'PATCH',
     headers: {
@@ -132,7 +132,7 @@ async function writeDoc(collection, id, fields) {
 
 async function deleteDoc(collection, id) {
   const token = await getAuthToken();
-  const url   = `${FIRESTORE_BASE}/${collection}/${id}?key=${FIRESTORE_KEY}`;
+  const url   = `${FIRESTORE_BASE}/${collection}/${encodeURIComponent(id)}?key=${FIRESTORE_KEY}`;
   const res   = await fetch(url, {
     method : 'DELETE',
     headers: { 'Authorization': `Bearer ${token}` },
