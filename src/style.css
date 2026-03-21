@@ -338,6 +338,49 @@ select:focus { outline: none; border-color: var(--accent); }
 }
 .customer-group.cg-done { border-color: #2a2a25; opacity: 0.7; }
 
+/* ── CRATE VISUALISATION ─────────────────────────────────────── */
+.crate-bg {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+  opacity: 0.65;
+}
+.crate {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 3px;
+  border: 1.5px solid var(--border);
+  border-radius: 3px;
+}
+.crate-row {
+  display: flex;
+  gap: 2px;
+}
+.crate-slot {
+  width: 9px;
+  height: 9px;
+  border-radius: 1px;
+  background: var(--border);
+}
+.crate-slot.empty {
+  opacity: 0.35;
+}
+.crate-compact {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  padding: 2px 5px;
+  border: 1.5px solid var(--border);
+  border-radius: 3px;
+}
+
 .customer-header {
   display: flex;
   align-items: center;
@@ -594,6 +637,8 @@ input[type="checkbox"]:checked::after {
 
 /* ── DEPARTMENT DIVIDER ──────────────────────────────────────── */
 .dept-divider {
+  display: flex;
+  align-items: center;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -602,6 +647,9 @@ input[type="checkbox"]:checked::after {
   padding: 6px 12px 4px;
   border-top: 1px solid #2a2a28;
   margin-top: 4px;
+}
+.dept-divider .crate-bg {
+  margin-left: auto;
 }
 .dept-divider:first-child {
   border-top: none;
