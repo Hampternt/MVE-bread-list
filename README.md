@@ -31,9 +31,11 @@ Each customer section shows their individual order cards. Tap the checkbox on a 
 
 Customers with multiple departments show a divider heading per department, with each department sorted independently.
 
+Each customer header (or department divider for multi-dept customers) shows a small **crate diagram** on the right — coloured slots indicating how many physical crates are needed and how bread types fill them. Customers with more than 50 units show a compact `■×N` badge for full crates plus one partial crate diagram for the remainder.
+
 ### 4. Report missing items
 
-If a product isn't available, tap the **missing items button** on its card. A detail sheet slides up where you can record:
+If a product isn't available, **long-press** (hold for half a second) on its order card. A detail sheet slides up where you can record:
 
 - How many units are missing
 - A replacement product (if the customer accepts alternatives)
