@@ -74,6 +74,25 @@ async function parseFile(file) {
   return rows.slice(1).map(rowToOrder).filter(Boolean);
 }
 
+// ─── FIREBASE AUTH (anonymous) ────────────────────────────
+// Firestore batchWrite requires a Firebase Auth ID token even with open rules.
+// We sign in anonymously and cache the token for the session.
+let _authToken = null;
+
+async function getAuthToken() {
+  if (_authToken) return _authToken;
+  const url = `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIRESTORE_KEY}`;
+  const res  = await fetch(url, {
+    method : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body   : JSON.stringify({ returnSecureToken: true }),
+  });
+  if (!res.ok) throw new Error(`Auth failed HTTP ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  _authToken = data.idToken;
+  return _authToken;
+}
+
 // ─── FIRESTORE HELPERS ────────────────────────────────────
 // Document ID: encodeURIComponent(itemKey) — deterministic, consistent with RTDB itemKey format
 function docId(order) {
@@ -96,11 +115,15 @@ function orderToFirestoreFields(order) {
 }
 
 async function batchWrite(writes) {
-  const url = `https://firestore.googleapis.com/v1/projects/mve-bread/databases/(default)/documents:batchWrite?key=${FIRESTORE_KEY}`;
-  const res = await fetch(url, {
+  const token = await getAuthToken();
+  const url   = `https://firestore.googleapis.com/v1/projects/mve-bread/databases/(default)/documents:batchWrite?key=${FIRESTORE_KEY}`;
+  const res   = await fetch(url, {
     method : 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body   : JSON.stringify({ writes }),
+    headers: {
+      'Content-Type' : 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ writes }),
   });
   if (!res.ok) throw new Error(`batchWrite HTTP ${res.status}: ${await res.text()}`);
   return res.json();
