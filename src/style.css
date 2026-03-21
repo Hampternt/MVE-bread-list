@@ -48,6 +48,8 @@ header {
 
 .logo-icon { font-size: 32px; line-height: 1; }
 
+.header-logo { width: 36px; height: 36px; object-fit: contain; }
+
 .header-text h1 {
   font-size: 28px;
   font-weight: 900;
