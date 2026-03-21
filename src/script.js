@@ -3,15 +3,17 @@
 // script.js
 // ─────────────────────────────────────────────────────────────
 // Data flow:
-//   fetchSheetData() → allOrderRows[]
+//   fetchOrderData() → allOrderRows[]
 //   loadRoute() → renderCurrentRoute()
 //   renderCurrentRoute() → renderSummary() + renderOrders()
 //   checkbox change (delegated) → toggle / toggleSummaryItem → re-render
 // ═══════════════════════════════════════════════════════════════
 
 // ─── CONFIGURATION ────────────────────────────────────────────
-const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQtpZq0YITZ1P_7kRssEnU8JW8c-wXsq7odSN2GjcGmBsJAIrmtC0QWXjjv6tSafF_u-BJ90ZLvR5IK/pub?output=csv";
-const FIREBASE_URL = "https://mve-bread-default-rtdb.europe-west1.firebasedatabase.app";
+const FIREBASE_URL    = 'https://mve-bread-default-rtdb.europe-west1.firebasedatabase.app';
+const FIRESTORE_KEY   = 'AIzaSyDGGpoqD-GlAF98dYxly7X7dQRWeUwpXY4';
+const FIRESTORE_URL   = 'https://firestore.googleapis.com/v1/projects/mve-bread/databases/(default)/documents';
+const FIRESTORE_COLL  = 'bread-orders';
 
 // ─── COLUMN MAPPING (0-indexed) ───────────────────────────────
 // Matches: PSR-BREAD-2026-03-04 sheet exactly
@@ -95,6 +97,26 @@ function rowToObject(fields) {
   };
 }
 
+// ─── FIRESTORE DOCUMENT → ORDER OBJECT ───────────────────────
+// Maps a raw Firestore REST document to the same shape as rowToObject().
+function firestoreDocToOrder(doc, itemId) {
+  const f = doc.fields;
+  const num = key => parseInt(f[key]?.integerValue ?? f[key]?.doubleValue) || 0;
+  return {
+    itemKey      : f.itemKey.stringValue,
+    orderNum     : f.orderNum.stringValue,
+    qty          : num('qty'),
+    ware         : f.ware.stringValue,
+    supplier     : f.supplier?.stringValue || '',
+    customer     : f.customer.stringValue,
+    dept         : f.dept?.stringValue || '',
+    route        : f.route.stringValue,
+    routeOrdering: num('routeOrdering'),
+    acceptAlts   : f.acceptAlts?.booleanValue === true,
+    itemId       : String(itemId),
+  };
+}
+
 // ─── FETCH ────────────────────────────────────────────────────
 const routeDropdown = document.getElementById('routeSelect');
 
@@ -103,57 +125,47 @@ function showMsg(icon, msg) {
     `<div class="placeholder"><div class="big">${icon}</div><p>${msg}</p></div>`;
 }
 
-async function fetchSheetData() {
-  if (!SHEET_CSV_URL || SHEET_CSV_URL === 'YOUR_GOOGLE_SHEETS_CSV_URL_HERE') {
-    showMsg('⚠️', 'No sheet URL configured');
-    return;
-  }
-
+// ─── FETCH ORDER DATA FROM FIRESTORE ─────────────────────
+async function fetchOrderData() {
   showMsg('⏳', 'Loading…');
-  console.log('[BreadRun] Fetching sheet data…');
+  console.log('[BreadRun] Fetching orders from Firestore…');
 
-  const isLocalFileProtocol = location.protocol === 'file:';
-  const PROXY               = 'https://corsproxy.io/?';
-  // Google Sheets CDN caches aggressively — append a timestamp to bypass it.
-  const cacheBustedUrl = SHEET_CSV_URL + '&_=' + Date.now();
-  // When opened via file:// the browser blocks cross-origin fetches, so we route
-  // through a CORS proxy. On a real server the sheet URL is fetched directly.
-  const fetchUrl = isLocalFileProtocol ? PROXY + encodeURIComponent(cacheBustedUrl) : cacheBustedUrl;
+  const docs = [];
+  let pageToken = null;
 
   try {
-    const res = await fetch(fetchUrl);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const text = await res.text();
+    do {
+      const url = `${FIRESTORE_URL}/${FIRESTORE_COLL}?key=${FIRESTORE_KEY}&pageSize=300` +
+                  (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '') +
+                  `&_=${Date.now()}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      if (data.documents) docs.push(...data.documents);
+      pageToken = data.nextPageToken || null;
+    } while (pageToken);
 
-    const rows = parseCSV(text);
-    if (rows.length < 2) throw new Error('Sheet appears empty');
-
-    // Skip header row; skip rows with no order ID.
-    // itemId uses the row index (not orderNum) because a single Order ID can
-    // span multiple bread line items (one per product type).
-    allOrderRows = rows.slice(1)
-      .map((fields, i) => {
-        const order = { ...rowToObject(fields), itemId: String(i) };
-        // itemKey = "orderNum|ware" — stable cross-device identity stored in Firebase.
-        // Unlike itemId (session-local index), itemKey survives page reloads.
-        order.itemKey = order.orderNum + '|' + order.ware;
-        return order;
-      })
-      .filter(order => order.orderNum);
-
-    if (!allOrderRows.length) {
-      showMsg('📭', 'No orders found in sheet');
+    if (!docs.length) {
+      showMsg('📭', 'No orders found — upload data first');
       return;
     }
 
-    console.log(`[BreadRun] Sheet loaded — ${allOrderRows.length} items across ${[...new Set(allOrderRows.map(order => order.route))].length} routes`);
+    allOrderRows = docs
+      .map((doc, i) => firestoreDocToOrder(doc, i))
+      .filter(order => order.orderNum);
+
+    if (!allOrderRows.length) {
+      showMsg('📭', 'No valid orders in Firestore');
+      return;
+    }
+
+    console.log(`[BreadRun] Loaded ${allOrderRows.length} items across ${[...new Set(allOrderRows.map(o => o.route))].length} routes`);
 
     // Rebuild route dropdown, preserving current selection if still valid
     const currentRoute = routeDropdown.value;
     while (routeDropdown.options.length > 1) routeDropdown.remove(1);
 
-    const routes = [...new Set(allOrderRows.map(order => order.route))].sort((a, b) => {
-      // Numeric sort where possible (1, 2 … 10), then alphabetic (hau 1, hau 2)
+    const routes = [...new Set(allOrderRows.map(o => o.route))].sort((a, b) => {
       const na = parseInt(a), nb = parseInt(b);
       if (!isNaN(na) && !isNaN(nb)) return na - nb;
       return a.localeCompare(b);
@@ -168,25 +180,25 @@ async function fetchSheetData() {
 
     if (currentRoute && routes.includes(currentRoute)) {
       routeDropdown.value = currentRoute;
-      renderCurrentRoute();  // re-render without wiping checked state
+      renderCurrentRoute();
     } else {
       showMsg('🚚', 'Select your route to begin');
       document.getElementById('statsBar').style.display   = 'none';
       document.getElementById('summaryBox').style.display = 'none';
     }
 
-    fetchStatuses(); // async — re-renders once statuses arrive; no-op if URL not set
+    fetchStatuses();
 
     const el = document.getElementById('lastRefreshed');
     if (el) el.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   } catch (err) {
-    console.error('[BreadRun] Sheet fetch failed:', err);
-    showMsg('⚠️', 'Could not load sheet — ' + err.message);
+    console.error('[BreadRun] Firestore fetch failed:', err);
+    showMsg('⚠️', 'Could not load orders — ' + err.message);
   }
 }
 
-fetchSheetData();
+fetchOrderData();
 
 // Immediately sync when the user returns to this tab.
 document.addEventListener('visibilitychange', () => {
@@ -334,7 +346,7 @@ async function pollForChanges() {
     if (!serverTimestamp) return;
     if (lastFirebaseWriteTime === null) {
       // First poll after page load — just record the current timestamp.
-      // fetchSheetData() already called fetchStatuses(), so no second fetch needed.
+      // fetchOrderData() already called fetchStatuses(), so no second fetch needed.
       lastFirebaseWriteTime = serverTimestamp;
       return;
     }
@@ -940,7 +952,7 @@ async function resetFirebaseRoute(route, orders) {
 
 // ─── STATIC UI WIRING ────────────────────────────────────────
 // Attach handlers to elements that exist on page load
-document.querySelector('.refresh-btn').addEventListener('click', fetchSheetData);
+document.querySelector('.refresh-btn').addEventListener('click', fetchOrderData);
 document.getElementById('routeSelect').addEventListener('change', loadRoute);
 document.querySelector('.summary-toggle').addEventListener('click', toggleSummary);
 document.getElementById('summarySortBtn').addEventListener('click', e => {
