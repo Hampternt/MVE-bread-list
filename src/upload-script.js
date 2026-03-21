@@ -94,9 +94,11 @@ async function getAuthToken() {
 }
 
 // ─── FIRESTORE HELPERS ────────────────────────────────────
-// Document ID: encodeURIComponent(itemKey) — deterministic, consistent with RTDB itemKey format
+// Document ID: URL-safe encoding of itemKey.
+// '/' is decoded as a path separator by the Firestore REST API, so we replace
+// it with '_' before encoding. The original itemKey is preserved as a field.
 function docId(order) {
-  return encodeURIComponent(order.itemKey);
+  return encodeURIComponent(order.itemKey.replace(/\//g, '_'));
 }
 
 function orderToFirestoreFields(order) {
