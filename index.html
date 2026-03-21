@@ -1,127 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Bread Run</title>
-  <link rel="icon" type="image/svg+xml" href="assets/bread-basket.svg">
-  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>MVE Delivery — Choose List</title>
+  <link rel="icon" href="assets/bread-basket.svg" type="image/svg+xml">
   <link rel="stylesheet" href="src/style.css">
 </head>
-
 <body>
-
-  <!-- HEADER -->
-  <header>
-    <div class="logo-icon">🍞</div>
-    <div class="header-text">
-      <h1>Bread Run</h1>
-      <p>Route Checklist</p>
-    </div>
-    <div class="header-actions">
-      <a class="missing-icon-btn" href="missing-report.html" title="Missing items report">!</a>
-      <a class="info-btn" href="missing-report.html">Missing items</a>
-      <a class="info-btn" href="project-map.html">How the magic is done</a>
-      <button class="refresh-btn">↻ Refresh</button>
-    </div>
+  <header class="header">
+    <img src="assets/bread-basket.svg" alt="" class="header-logo">
+    <span class="header-title">MVE Delivery</span>
   </header>
 
-  <!-- ROUTE SELECTOR -->
-  <div class="route-selector">
-    <label for="routeSelect">Route</label>
-    <select id="routeSelect">
-      <option value="">— Select your route —</option>
-    </select>
-  </div>
-
-  <!-- STATS BAR -->
-  <div class="stats-bar" id="statsBar" style="display:none">
-    <div class="stat"><strong id="statTotal">0</strong> orders</div>
-    <div class="stat-divider">|</div>
-    <div class="stat completed"><strong id="statDone">0</strong> done</div>
-    <div class="stat-divider">|</div>
-    <div class="stat"><strong id="statQty">0</strong> units total</div>
-  </div>
-
-  <!-- SORTING STAGE / SUMMARY BOX -->
-  <div class="summary-box" id="summaryBox" style="display:none">
-    <div class="summary-toggle">
-      <div class="summary-toggle-left">
-        <span class="summary-title">📦 Sorting Stage</span>
-        <span class="summary-subtitle" id="summarySubtitle"></span>
-      </div>
-      <button class="summary-sort-btn" id="summarySortBtn">QTY ↓</button>
-      <span class="summary-chevron" id="summaryChevron">▼</span>
-    </div>
-    <div class="summary-items" id="summaryItems"></div>
-  </div>
-
-  <!-- MAIN CONTENT (customer groups + order cards) -->
-  <div class="content" id="content">
-    <div class="placeholder">
-      <div class="big">🚚</div>
-      <p>Select your route to begin</p>
-    </div>
-  </div>
-
-  <!-- SYNC OVERLAY — blocks all interaction while fetching after customer completion -->
-  <div class="sync-overlay" id="syncOverlay">
-    <div class="sync-label">Syncing…</div>
-  </div>
-
-  <!-- RESET CONFIRMATION DIALOG -->
-  <div class="confirm-overlay" id="confirmOverlay">
-    <div class="confirm-sheet">
-      <div class="confirm-title">Reset checklist?</div>
-      <div class="confirm-body">All ticked items will be cleared.<br>This cannot be undone.</div>
-      <div class="confirm-actions">
-        <button class="confirm-cancel">Cancel</button>
-        <button class="confirm-ok">Reset</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MISSING ITEM DETAIL SHEET -->
-  <div class="confirm-overlay" id="missingDetailOverlay">
-    <div class="confirm-sheet missing-detail-sheet">
-      <div class="confirm-title">Missing item</div>
-      <div id="detailWareName"></div>
-      <div class="missing-detail-field">
-        <label class="missing-detail-label" for="detailQtyMissing">Qty missing</label>
-        <input type="number" id="detailQtyMissing" min="1" placeholder="0">
-      </div>
-      <div id="detailReplacementRow" class="missing-detail-field">
-        <label class="missing-detail-label" for="detailReplacementWare">Replacement ware</label>
-        <input type="text" id="detailReplacementWare" placeholder="e.g. Ciabatta">
-      </div>
-      <div class="confirm-actions">
-        <button class="confirm-cancel missing-detail-cancel">Cancel</button>
-        <button class="confirm-ok missing-detail-save">Save</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- FOOTER LEGEND -->
-  <footer class="app-footer">
-    <div class="footer-key">
-      <div class="key-item"><div class="key-swatch swatch-pending"></div><span>Pending</span></div>
-      <div class="key-item"><div class="key-swatch swatch-packed"></div><span>Packed</span></div>
-      <div class="key-item"><div class="key-swatch swatch-missing"></div><span>Missing</span></div>
-      <div class="key-item"><div class="key-swatch swatch-replaced"></div><span>Replaced</span></div>
-    </div>
-    <div class="footer-links">
-      <a class="footer-link" href="missing-report.html">Missing items report</a>
-      <a class="footer-link" href="tutorial.html">How to use</a>
-      <a class="footer-link" href="project-map.html">How the magic is done</a>
-    </div>
-    <div class="footer-meta">Last refreshed: <span id="lastRefreshed">—</span></div>
-  </footer>
-
-  <script src="src/script.js"></script>
+  <main class="landing-main">
+    <p class="landing-subtitle">Select a list to begin packing</p>
+    <a href="bread.html" class="landing-btn landing-btn-bread">🍞 Bread list</a>
+    <a href="freezer.html" class="landing-btn landing-btn-freezer">❄️ Freezer wares list</a>
+    <a href="upload.html" class="landing-admin">Upload order data</a>
+  </main>
 </body>
-
 </html>
