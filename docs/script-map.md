@@ -2,7 +2,7 @@
 
 ## 1. WHAT THIS FILE IS
 
-`script.js` is the entire brain of the Bread Run app — ~630 lines with no build step,
+`script.js` is the entire brain of the Bread Run app — ~850 lines with no build step,
 no framework, no imports. It fetches a Google Sheet CSV, renders an interactive
 route checklist, and syncs checkbox state to Firebase Realtime Database in real time
 across multiple drivers' phones.
@@ -66,6 +66,8 @@ Google Sheet (CSV, published)
 | `isSummaryOpen` | `boolean` | `true \| false` | Whether the Sorting Stage collapsible is expanded |
 | `summaryProductSort` | `string` | `'qty-desc' \| 'qty-asc'` | Current sort direction of the summary list |
 | `lastFirebaseWriteTime` | `number \| null` | Unix ms timestamp | Last `/lastModified` value we know about; `null` until first poll |
+| `itemMissingData` | `Object` | `{ route: { itemId: { qtyMissing, replacementWare } } }` | Details for items marked missing; presence of an entry indicates missing state |
+| `missingDetailTarget` | `Object \| null` | `{ route, itemId, acceptAlts }` | Which card's missing-detail overlay is currently open; `null` when closed |
 
 ### itemId vs itemKey
 
@@ -87,10 +89,11 @@ Google Sheet (CSV, published)
 | `parseCSV(text)` | RFC-4180-compatible CSV parser — handles quoted fields and escaped quotes |
 | `rowToObject(fields)` | Maps a CSV row array to a typed order object using the `COLS` mapping |
 | `fetchSheetData()` | Fetches the Sheet CSV, parses it into `allOrderRows`, populates the route dropdown |
-| `applyStatusRows(rows)` | Merges an array of Firebase status rows into `itemChecked` / `summaryTypeChecked` |
+| `firebaseKey(str)` | `encodeURIComponent(str)` — centralises all Firebase key encoding |
+| `applyStatusRows(rows)` | Merges an array of Firebase status rows into `itemChecked` / `summaryTypeChecked` / `itemMissingData` |
 | `fetchStatuses()` | GET `/statuses.json` → `applyStatusRows()` → re-render |
 | `postStatus({...})` | PUT a single item's status to Firebase + stamp `/lastModified` |
-| `deleteStatus(orderNum)` | DELETE a single item's status from Firebase + stamp `/lastModified` |
+| `deleteStatus(itemKey)` | DELETE a single item's status from Firebase + stamp `/lastModified` |
 | `pollForChanges()` | GET `/lastModified` — only triggers `fetchStatuses()` if timestamp changed |
 | `resetFirebaseRoute(route, orders)` | PATCH all route entries to `null` (atomic delete) |
 
@@ -102,12 +105,34 @@ Google Sheet (CSV, published)
 | `renderCurrentRoute()` | Orchestrates a full re-render: stats + summary + orders |
 | `getRouteOrders(route)` | Filters `allOrderRows` to a single route |
 | `sortedCustomers(orders)` | Groups orders by customer, sorts by `maxOrdering` descending |
+| `isItemResolved(route, itemId)` | Returns `true` if the item is checked **or** marked missing (used for pending/done sort) |
 | `renderSummary(orders)` | Renders the Sorting Stage collapsible (bread type totals) |
-| `renderOrders(orders)` | Renders all customer group cards with pending/done ordering |
-| `cardHTML(order, checkedForRoute)` | Returns HTML string for one order card |
+| `renderOrders(orders)` | Renders all customer group cards with pending/done ordering; injects crate viz |
+| `cardHTML(order, checkedForRoute, missingForRoute)` | Returns HTML string for one order card, including missing-state row if applicable |
 | `supplierIconHTML(supplier)` | Returns an `<img>` tag for known suppliers, or `''` |
 | `updateStats(orders)` | Updates the stats bar (total items, done count, total units) |
 | `showMsg(icon, msg)` | Replaces content area with a centred placeholder message |
+
+### Crate Visualisation
+
+Crates are shown at the **avdeling (department) level**: single-dept customers show the viz in the customer header; multi-dept customers show it in each dept-divider. Above 50 total units, compact mode is used.
+
+| Function | Purpose |
+|---|---|
+| `getWareColors(orders)` | Assigns a colour from `CRATE_COLORS` to each unique ware name (sorted alphabetically) for the whole route — same ware = same colour across all customers |
+| `buildCrateData(custOrders, wareColors)` | Calculates crate count using the floor/remainder algorithm; returns `{ compact, crates }` or `{ compact, fullBig, partialCrate }` above the threshold |
+| `renderOneCrate(crate)` | Returns HTML for a single crate grid (2 rows × 5 for big, 1 row × 5 for small) |
+| `crateVizHTML(data)` | Returns the full `.crate-bg` HTML, or `''` if no crates |
+
+### Missing Items
+
+Long-press (500 ms) on an order card triggers the missing-item flow. `missingDetailTarget` tracks which card's overlay is open.
+
+| Function | Purpose |
+|---|---|
+| `openMissingDetail(itemId)` | Marks item missing in local state + Firebase, opens the detail overlay |
+| `closeMissingDetail()` | Closes the overlay without saving, clears `missingDetailTarget` |
+| `saveMissingDetail()` | Reads qty/replacement from overlay inputs, saves to `itemMissingData` + Firebase, re-renders |
 
 ### UI / Event
 
