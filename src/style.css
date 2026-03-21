@@ -335,22 +335,17 @@ select:focus { outline: none; border-color: var(--accent); }
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
-  position: relative;
 }
 .customer-group.cg-done { border-color: #2a2a25; opacity: 0.7; }
 
 /* ── CRATE VISUALISATION ─────────────────────────────────────── */
 .crate-bg {
-  position: absolute;
-  right: 8px;
-  top: 0;
-  bottom: 0;
   display: flex;
   align-items: center;
-  gap: 5px;
-  pointer-events: none;
-  opacity: 0.28;
-  z-index: 0;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+  opacity: 0.65;
 }
 .crate {
   display: flex;
@@ -373,10 +368,20 @@ select:focus { outline: none; border-color: var(--accent); }
 .crate-slot.empty {
   opacity: 0.35;
 }
+.crate-compact {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  padding: 2px 5px;
+  border: 1.5px solid var(--border);
+  border-radius: 3px;
+}
 
 .customer-header {
-  position: relative;
-  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -384,10 +389,6 @@ select:focus { outline: none; border-color: var(--accent); }
   padding: 10px 14px;
   border-bottom: 1px solid var(--border);
   gap: 10px;
-}
-.customer-orders {
-  position: relative;
-  z-index: 1;
 }
 .cg-done .customer-header { background: #222220; border-bottom-color: #2a2a25; }
 
@@ -636,6 +637,8 @@ input[type="checkbox"]:checked::after {
 
 /* ── DEPARTMENT DIVIDER ──────────────────────────────────────── */
 .dept-divider {
+  display: flex;
+  align-items: center;
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -644,6 +647,9 @@ input[type="checkbox"]:checked::after {
   padding: 6px 12px 4px;
   border-top: 1px solid #2a2a28;
   margin-top: 4px;
+}
+.dept-divider .crate-bg {
+  margin-left: auto;
 }
 .dept-divider:first-child {
   border-top: none;

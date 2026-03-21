@@ -487,20 +487,37 @@ function getWareColors(orders) {
   return map;
 }
 
-function buildCrateSlots(custOrders, wareColors) {
-  // Sum qty per ware, sort by qty desc
+const CRATE_COMPACT_THRESHOLD = 50;
+
+function buildCrateData(custOrders, wareColors) {
   const qtyByWare = {};
   custOrders.forEach(o => { qtyByWare[o.ware] = (qtyByWare[o.ware] || 0) + o.qty; });
   const sorted = Object.entries(qtyByWare).sort((a, b) => b[1] - a[1]);
+  const total = sorted.reduce((s, [, q]) => s + q, 0);
+  if (!total) return null;
 
-  // Flat slots array of colors
+  // Flat color slots
   const slots = [];
   sorted.forEach(([ware, qty]) => {
     const color = wareColors[ware] || '#888';
     for (let i = 0; i < qty; i++) slots.push(color);
   });
 
-  const total = slots.length;
+  function makeOneCrate(size, startIdx) {
+    const cs = [];
+    for (let s = 0; s < size; s++) cs.push(startIdx + s < slots.length ? slots[startIdx + s] : null);
+    return { size, slots: cs };
+  }
+
+  if (total > CRATE_COMPACT_THRESHOLD) {
+    // Compact: show full-crate badge × count + one partial crate for the remainder
+    const fullBig = Math.floor(total / 10);
+    const rem = total % 10;
+    const partialCrate = rem > 0 ? makeOneCrate(rem > 5 ? 10 : 5, fullBig * 10) : null;
+    return { compact: true, total, fullBig, partialCrate };
+  }
+
+  // Full grid: individual crate slots
   let bigCount = Math.floor(total / 10);
   const remainder = total % 10;
   let smallCount = 0;
@@ -509,39 +526,37 @@ function buildCrateSlots(custOrders, wareColors) {
 
   const crates = [];
   let idx = 0;
-  for (let c = 0; c < bigCount; c++) {
-    const crateSlots = [];
-    for (let s = 0; s < 10; s++) crateSlots.push(idx < slots.length ? slots[idx++] : null);
-    crates.push({ size: 10, slots: crateSlots });
-  }
-  if (smallCount) {
-    const crateSlots = [];
-    for (let s = 0; s < 5; s++) crateSlots.push(idx < slots.length ? slots[idx++] : null);
-    crates.push({ size: 5, slots: crateSlots });
-  }
-  return crates;
+  for (let c = 0; c < bigCount; c++) { crates.push(makeOneCrate(10, idx)); idx += 10; }
+  if (smallCount)                      { crates.push(makeOneCrate(5,  idx)); }
+  return { compact: false, total, crates };
 }
 
-function crateVizHTML(crates) {
-  if (!crates.length) return '';
-  let html = '<div class="crate-bg">';
-  crates.forEach(crate => {
-    html += '<div class="crate">';
-    const rows = crate.size === 10 ? 2 : 1;
-    const cols = 5;
-    for (let r = 0; r < rows; r++) {
-      html += '<div class="crate-row">';
-      for (let c = 0; c < cols; c++) {
-        const color = crate.slots[r * cols + c];
-        if (color) html += `<div class="crate-slot" style="background:${color}"></div>`;
-        else        html += '<div class="crate-slot empty"></div>';
-      }
-      html += '</div>';
+function renderOneCrate(crate) {
+  const rows = crate.size === 10 ? 2 : 1;
+  const cols = 5;
+  let h = '<div class="crate">';
+  for (let r = 0; r < rows; r++) {
+    h += '<div class="crate-row">';
+    for (let c = 0; c < cols; c++) {
+      const color = crate.slots[r * cols + c];
+      h += color ? `<div class="crate-slot" style="background:${color}"></div>`
+                 : '<div class="crate-slot empty"></div>';
     }
-    html += '</div>';
-  });
-  html += '</div>';
-  return html;
+    h += '</div>';
+  }
+  return h + '</div>';
+}
+
+function crateVizHTML(data) {
+  if (!data) return '';
+  let html = '<div class="crate-bg">';
+  if (data.compact) {
+    if (data.fullBig > 0)   html += `<div class="crate-compact">\u25A0\u00D7${data.fullBig}</div>`;
+    if (data.partialCrate)  html += renderOneCrate(data.partialCrate);
+  } else {
+    data.crates.forEach(crate => { html += renderOneCrate(crate); });
+  }
+  return html + '</div>';
 }
 
 // ─── ORDER LIST ───────────────────────────────────────────────
@@ -568,20 +583,22 @@ function renderOrders(orders) {
     const isCustomerComplete = completedCount === custOrders.length;
     const isInProgress       = !isCustomerComplete && completedCount > 0;
 
+    // Compute depts early — needed to decide where to place crate viz (header vs divider).
+    const depts = [...new Set(custOrders.map(order => order.dept))];
+    const multiDept = depts.length > 1;
+
     html += `
       <div class="customer-group ${isCustomerComplete ? 'cg-done' : isInProgress ? 'cg-in-progress' : ''}">
-        ${crateVizHTML(buildCrateSlots(custOrders, wareColors))}
         <div class="customer-header">
           <span class="customer-name">${customer}</span>
           ${isInProgress ? '<span class="status-pip"></span>' : ''}
           <span class="customer-tally ${isCustomerComplete ? 'tally-done' : ''}">${completedCount}/${custOrders.length}</span>
+          ${multiDept ? '' : crateVizHTML(buildCrateData(custOrders, wareColors))}
         </div>
         <div class="customer-orders">`;
 
     // Pending items first, resolved items sink to bottom — dept-aware sub-grouping.
-    // depts.length <= 1 is a fast path: skip the dept divider overhead for most customers.
-    const depts = [...new Set(custOrders.map(order => order.dept))];
-    if (depts.length <= 1) {
+    if (!multiDept) {
       const pending = custOrders.filter(order => !isItemResolved(route, order.itemId));
       const done    = custOrders.filter(order =>  isItemResolved(route, order.itemId));
       [...pending, ...done].forEach(order => { html += cardHTML(order, checkedForRoute, missingForRoute); });
@@ -590,7 +607,7 @@ function renderOrders(orders) {
         const deptOrders = custOrders.filter(order => order.dept === dept);
         const pending    = deptOrders.filter(order => !isItemResolved(route, order.itemId));
         const done       = deptOrders.filter(order =>  isItemResolved(route, order.itemId));
-        html += `<div class="dept-divider">${dept || '—'}</div>`;
+        html += `<div class="dept-divider">${dept || '—'}${crateVizHTML(buildCrateData(deptOrders, wareColors))}</div>`;
         [...pending, ...done].forEach(order => { html += cardHTML(order, checkedForRoute, missingForRoute); });
       });
     }
