@@ -6,7 +6,7 @@
 const pin = sessionStorage.getItem('app-pin');
 if (!pin) { location.replace('index.html'); }
 
-const FIRESTORE_KEY  = 'AIzaSyDGGpoqD-GlAF98dYxly7X7dQRWeUwpXY4';
+const FIRESTORE_KEY  = 'AIzaSyBW9rjG7CrZDC9wGmLGze1JQdKQrA2X1oQ';
 const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1/projects/mve-bread/databases/(default)/documents';
 
 // ─── COLUMN MAPPING (matches script.js COLS) ─────────────

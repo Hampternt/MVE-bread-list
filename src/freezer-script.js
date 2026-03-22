@@ -22,7 +22,7 @@ function redirectToPin() {
 
 // ─── CONFIGURATION ────────────────────────────────────────────
 const FIREBASE_URL    = `https://mve-bread-default-rtdb.europe-west1.firebasedatabase.app/${pin}`;
-const FIRESTORE_KEY   = 'AIzaSyDGGpoqD-GlAF98dYxly7X7dQRWeUwpXY4';
+const FIRESTORE_KEY   = 'AIzaSyBW9rjG7CrZDC9wGmLGze1JQdKQrA2X1oQ';
 const FIRESTORE_URL   = 'https://firestore.googleapis.com/v1/projects/mve-bread/databases/(default)/documents';
 const FIRESTORE_COLL  = `pins/${pin}/freezer-orders`;
 
