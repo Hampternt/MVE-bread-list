@@ -1,28 +1,34 @@
 {
   "rules": {
-    "statuses": {
-      ".read": true,
-      "$key": {
-        ".write": true,
-        ".validate": "!newData.exists() || (newData.hasChildren(['status', 'route', 'customer']) && newData.child('status').isString() && (newData.child('status').val() === 'checked' || newData.child('status').val() === 'unchecked' || newData.child('status').val() === 'missing') && newData.child('route').isString() && newData.child('customer').isString() && (!newData.hasChild('qtyMissing') || newData.child('qtyMissing').isNumber()) && (!newData.hasChild('replacementWare') || newData.child('replacementWare').isString()))"
+    "config": {
+      ".read": false,
+      ".write": false
+    },
+    "$pin": {
+      "statuses": {
+        ".read": "$pin === root.child('config/pin').val()",
+        "$key": {
+          ".write": "$pin === root.child('config/pin').val()",
+          ".validate": "!newData.exists() || (newData.hasChildren(['status', 'route', 'customer']) && newData.child('status').isString() && (newData.child('status').val() === 'checked' || newData.child('status').val() === 'unchecked' || newData.child('status').val() === 'missing') && newData.child('route').isString() && newData.child('customer').isString() && (!newData.hasChild('qtyMissing') || newData.child('qtyMissing').isNumber()) && (!newData.hasChild('replacementWare') || newData.child('replacementWare').isString()))"
+        }
+      },
+      "lastModified": {
+        ".read": "$pin === root.child('config/pin').val()",
+        ".write": "$pin === root.child('config/pin').val()",
+        ".validate": "newData.isNumber()"
+      },
+      "freezer-statuses": {
+        ".read": "$pin === root.child('config/pin').val()",
+        "$key": {
+          ".write": "$pin === root.child('config/pin').val()",
+          ".validate": "!newData.exists() || (newData.hasChildren(['status', 'route', 'customer']) && newData.child('status').isString() && (newData.child('status').val() === 'checked' || newData.child('status').val() === 'unchecked' || newData.child('status').val() === 'missing') && newData.child('route').isString() && newData.child('customer').isString() && (!newData.hasChild('qtyMissing') || newData.child('qtyMissing').isNumber()) && (!newData.hasChild('replacementWare') || newData.child('replacementWare').isString()))"
+        }
+      },
+      "freezer-lastModified": {
+        ".read": "$pin === root.child('config/pin').val()",
+        ".write": "$pin === root.child('config/pin').val()",
+        ".validate": "newData.isNumber()"
       }
-    },
-    "lastModified": {
-      ".read": true,
-      ".write": true,
-      ".validate": "newData.isNumber()"
-    },
-    "freezer-statuses": {
-      ".read": true,
-      "$key": {
-        ".write": true,
-        ".validate": "!newData.exists() || (newData.hasChildren(['status', 'route', 'customer']) && newData.child('status').isString() && (newData.child('status').val() === 'checked' || newData.child('status').val() === 'unchecked' || newData.child('status').val() === 'missing') && newData.child('route').isString() && newData.child('customer').isString() && (!newData.hasChild('qtyMissing') || newData.child('qtyMissing').isNumber()) && (!newData.hasChild('replacementWare') || newData.child('replacementWare').isString()))"
-      }
-    },
-    "freezer-lastModified": {
-      ".read": true,
-      ".write": true,
-      ".validate": "newData.isNumber()"
     }
   }
 }

@@ -6,6 +6,21 @@
   <title>MVE Delivery — Choose List</title>
   <link rel="icon" href="assets/bread-basket.svg" type="image/svg+xml">
   <link rel="stylesheet" href="src/style.css">
+  <style>
+    .pin-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 60px); padding: 2rem 1rem; gap: 1rem; }
+    .pin-title { font-size: 1.1rem; font-weight: 700; color: var(--text); }
+    .pin-subtitle { font-size: 0.9rem; color: var(--muted); }
+    .pin-form { display: flex; flex-direction: column; align-items: center; gap: 0.75rem; width: 100%; max-width: 280px; }
+    .pin-input { width: 100%; padding: 0.85rem 1rem; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; color: var(--text); font-size: 1.4rem; font-family: 'DM Mono', monospace; letter-spacing: 0.15em; text-align: center; outline: none; -webkit-appearance: none; }
+    .pin-input:focus { border-color: var(--accent); }
+    .pin-btn { width: 100%; padding: 0.85rem; background: var(--accent); color: #1a1a18; font-size: 1rem; font-weight: 700; border: none; border-radius: 10px; cursor: pointer; }
+    .pin-btn:active { opacity: 0.8; }
+    .pin-error { font-size: 0.9rem; color: #e05555; min-height: 1.2em; }
+    @keyframes pin-shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)} }
+    .pin-form.shake { animation: pin-shake 0.4s ease; }
+    .nav-screen { display: none; flex-direction: column; align-items: center; justify-content: center; min-height: calc(100vh - 60px); padding: 2rem 1rem; gap: 1rem; }
+    .nav-screen.visible { display: flex; }
+  </style>
 </head>
 <body>
   <header class="header">
@@ -13,11 +28,78 @@
     <span class="header-title">MVE Delivery</span>
   </header>
 
-  <main class="landing-main">
+  <div class="pin-screen" id="pinScreen">
+    <p class="pin-title">Enter PIN to continue</p>
+    <p class="pin-subtitle">Ask your manager if you don't have it</p>
+    <form class="pin-form" id="pinForm" onsubmit="submitPin(event)">
+      <input class="pin-input" id="pinInput" type="password" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="••••" maxlength="4" autofocus>
+      <p class="pin-error" id="pinError"></p>
+    </form>
+  </div>
+
+  <main class="nav-screen" id="navScreen">
     <p class="landing-subtitle">Select a list to begin packing</p>
     <a href="bread.html" class="landing-btn landing-btn-bread">🍞 Bread list</a>
     <a href="freezer.html" class="landing-btn landing-btn-freezer">❄️ Freezer wares list</a>
     <a href="upload.html" class="landing-admin">Upload order data</a>
   </main>
+
+  <script>
+    // Validates against Firestore — where the actual customer data lives.
+    const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1/projects/mve-bread/databases/(default)/documents';
+    const FIRESTORE_KEY  = 'AIzaSyDGGpoqD-GlAF98dYxly7X7dQRWeUwpXY4';
+
+    function showNav() {
+      document.getElementById('pinScreen').style.display = 'none';
+      document.getElementById('navScreen').classList.add('visible');
+    }
+
+    // If PIN already in session, skip the form
+    if (sessionStorage.getItem('app-pin')) {
+      showNav();
+    } else {
+      // Auto-focus opens the number keyboard on mobile immediately
+      document.getElementById('pinInput').focus();
+    }
+
+    // Strip non-digits and auto-submit once 4 digits are entered
+    document.getElementById('pinInput').addEventListener('input', function () {
+      this.value = this.value.replace(/\D/g, '').slice(0, 4);
+      if (this.value.length === 4) {
+        document.getElementById('pinForm').requestSubmit();
+      }
+    });
+
+    async function submitPin(e) {
+      e.preventDefault();
+      const form    = document.getElementById('pinForm');
+      const input   = document.getElementById('pinInput');
+      const errorEl = document.getElementById('pinError');
+      const entered = input.value.trim();
+      if (!entered) return;
+
+      errorEl.textContent = '';
+      try {
+        // Try to list bread-orders under this PIN. Firestore returns 403 if the
+        // PIN doesn't match /config/pin.value — correct PIN returns 200 (empty or with data).
+        const res = await fetch(
+          `${FIRESTORE_BASE}/pins/${encodeURIComponent(entered)}/bread-orders?key=${FIRESTORE_KEY}&pageSize=1`
+        );
+        if (res.status === 401 || res.status === 403) {
+          errorEl.textContent = 'Wrong PIN — try again';
+          form.classList.remove('shake');
+          void form.offsetWidth; // reflow to restart animation
+          form.classList.add('shake');
+          input.value = '';
+          input.focus();
+        } else {
+          sessionStorage.setItem('app-pin', entered);
+          showNav();
+        }
+      } catch {
+        errorEl.textContent = 'Network error — check connection';
+      }
+    }
+  </script>
 </body>
 </html>

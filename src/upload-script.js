@@ -2,6 +2,10 @@
 // Upload Script — parses CSV or XLSX and writes to Firestore
 // ═══════════════════════════════════════════════════════════
 
+// ─── PIN GATE ─────────────────────────────────────────────
+const pin = sessionStorage.getItem('app-pin');
+if (!pin) { location.replace('index.html'); }
+
 const FIRESTORE_KEY  = 'AIzaSyDGGpoqD-GlAF98dYxly7X7dQRWeUwpXY4';
 const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1/projects/mve-bread/databases/(default)/documents';
 
@@ -219,7 +223,7 @@ fileInput.addEventListener('change', async () => {
 });
 
 uploadBtn.addEventListener('click', async () => {
-  const collection = document.querySelector('input[name="collection"]:checked').value;
+  const collection = `pins/${pin}/${document.querySelector('input[name="collection"]:checked').value}`;
   uploadBtn.disabled = true;
   try {
     await uploadOrders(parsedOrders, collection);

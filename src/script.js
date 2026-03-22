@@ -9,11 +9,22 @@
 //   checkbox change (delegated) → toggle / toggleSummaryItem → re-render
 // ═══════════════════════════════════════════════════════════════
 
+// ─── PIN GATE ─────────────────────────────────────────────────
+const pin = sessionStorage.getItem('app-pin');
+if (!pin) { location.replace('index.html'); }
+
+// Clears the stored PIN and sends the user back to the landing page.
+// Called whenever Firebase or Firestore returns 401/403 (stale or wrong PIN).
+function redirectToPin() {
+  sessionStorage.removeItem('app-pin');
+  location.replace('index.html');
+}
+
 // ─── CONFIGURATION ────────────────────────────────────────────
-const FIREBASE_URL    = 'https://mve-bread-default-rtdb.europe-west1.firebasedatabase.app';
+const FIREBASE_URL    = `https://mve-bread-default-rtdb.europe-west1.firebasedatabase.app/${pin}`;
 const FIRESTORE_KEY   = 'AIzaSyDGGpoqD-GlAF98dYxly7X7dQRWeUwpXY4';
 const FIRESTORE_URL   = 'https://firestore.googleapis.com/v1/projects/mve-bread/databases/(default)/documents';
-const FIRESTORE_COLL  = 'bread-orders';
+const FIRESTORE_COLL  = `pins/${pin}/bread-orders`;
 
 // ─── COLUMN MAPPING (0-indexed) ───────────────────────────────
 // Matches: PSR-BREAD-2026-03-04 sheet exactly
@@ -139,6 +150,7 @@ async function fetchOrderData() {
                   (pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : '') +
                   `&_=${Date.now()}`;
       const res = await fetch(url);
+      if (res.status === 401 || res.status === 403) { redirectToPin(); return; }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       if (data.documents) docs.push(...data.documents);
@@ -250,6 +262,7 @@ async function fetchStatuses() {
   console.log('[BreadRun] Fetching item statuses from Firebase…');
   try {
     const res  = await fetch(`${FIREBASE_URL}/statuses.json`);
+    if (res.status === 401 || res.status === 403) { redirectToPin(); return; }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (data) {
@@ -752,6 +765,8 @@ document.getElementById('content').addEventListener('change', async e => {
     const customerOrders    = routeOrders.filter(order => order.customer === tappedOrder.customer);
     const isCustomerComplete = customerOrders.every(order => isItemResolved(route, order.itemId));
     if (isCustomerComplete) {
+      updateStats(routeOrders);
+      renderOrders(routeOrders);
       const syncOverlayEl = document.getElementById('syncOverlay');
       syncOverlayEl.classList.add('open');
       if (isNowChecked) {
