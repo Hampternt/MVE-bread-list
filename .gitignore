@@ -11,3 +11,9 @@ Thumbs.db
 # Editor directories
 .vscode/
 .idea/
+
+# Development-only files (kept locally, not on GitHub)
+docs/
+legacy/
+freezer-data.csv
+config/firestore.rules
