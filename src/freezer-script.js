@@ -24,7 +24,7 @@ function redirectToPin() {
 const FIREBASE_URL    = `https://mve-bread-default-rtdb.europe-west1.firebasedatabase.app/${pin}`;
 const FIRESTORE_KEY   = 'AIzaSyDGGpoqD-GlAF98dYxly7X7dQRWeUwpXY4';
 const FIRESTORE_URL   = 'https://firestore.googleapis.com/v1/projects/mve-bread/databases/(default)/documents';
-const FIRESTORE_COLL  = `pins/${pin}/bread-orders`;
+const FIRESTORE_COLL  = `pins/${pin}/freezer-orders`;
 
 // ─── COLUMN MAPPING (0-indexed) ───────────────────────────────
 // Matches: PSR-BREAD-2026-03-04 sheet exactly
@@ -45,12 +45,6 @@ const COLS = {
   acceptAlts    : 13,  // Accept alternatives (TRUE/FALSE)
 };
 
-// ─── CRATE VISUALISATION ──────────────────────────────────────
-const CRATE_COLORS = [
-  '#e8c840','#5abf6a','#4a9ede','#e87840',
-  '#c45abf','#5abfbf','#e84040','#b0bf5a','#bf8a5a','#5a6abf'
-];
-
 // ─── STATE ────────────────────────────────────────────────────
 // itemChecked      — { route: { itemId: bool } } — which order cards are ticked
 // itemId is a session-local row index, not stored in Firebase; see itemKey below.
@@ -63,7 +57,7 @@ let isSummaryOpen        = false;
 let summaryProductSort   = 'qty-desc';
 // allOrderRows     — every data row from the Google Sheet (header stripped, filtered to rows with an orderNum)
 let allOrderRows         = [];
-// lastFirebaseWriteTime — Unix ms timestamp of the last write we know about at /lastModified
+// lastFirebaseWriteTime — Unix ms timestamp of the last write we know about at /freezer-lastModified
 //                          Used by the 15 s poller to detect remote changes without a full fetch.
 let lastFirebaseWriteTime = null;
 // itemMissingData — { route: { itemId: { qtyMissing, replacementWare } } }
@@ -139,7 +133,7 @@ function showMsg(icon, msg) {
 // ─── FETCH ORDER DATA FROM FIRESTORE ─────────────────────
 async function fetchOrderData() {
   showMsg('⏳', 'Loading…');
-  console.log('[BreadRun] Fetching orders from Firestore…');
+  console.log('[FreezerRun] Fetching orders from Firestore…');
 
   const docs = [];
   let pageToken = null;
@@ -171,7 +165,7 @@ async function fetchOrderData() {
       return;
     }
 
-    console.log(`[BreadRun] Loaded ${allOrderRows.length} items across ${[...new Set(allOrderRows.map(o => o.route))].length} routes`);
+    console.log(`[FreezerRun] Loaded ${allOrderRows.length} items across ${[...new Set(allOrderRows.map(o => o.route))].length} routes`);
 
     // Rebuild route dropdown, preserving current selection if still valid
     const currentRoute = routeDropdown.value;
@@ -205,7 +199,7 @@ async function fetchOrderData() {
     if (el) el.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   } catch (err) {
-    console.error('[BreadRun] Firestore fetch failed:', err);
+    console.error('[FreezerRun] Firestore fetch failed:', err);
     showMsg('⚠️', 'Could not load orders — ' + err.message);
   }
 }
@@ -215,7 +209,7 @@ fetchOrderData();
 // Immediately sync when the user returns to this tab.
 document.addEventListener('visibilitychange', () => {
   if (!document.hidden && routeDropdown.value) {
-    console.log('[BreadRun] Tab focused: fetching statuses…');
+    console.log('[FreezerRun] Tab focused: fetching statuses…');
     fetchStatuses();
   }
 });
@@ -259,9 +253,9 @@ function applyStatusRows(rows) {
 // Silently no-ops if FIREBASE_URL is not set.
 async function fetchStatuses() {
   if (!FIREBASE_URL) return;
-  console.log('[BreadRun] Fetching item statuses from Firebase…');
+  console.log('[FreezerRun] Fetching item statuses from Firebase…');
   try {
-    const res  = await fetch(`${FIREBASE_URL}/statuses.json`);
+    const res  = await fetch(`${FIREBASE_URL}/freezer-statuses.json`);
     if (res.status === 401 || res.status === 403) { redirectToPin(); return; }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
@@ -274,7 +268,7 @@ async function fetchStatuses() {
     }
     if (routeDropdown.value) renderCurrentRoute();
   } catch (err) {
-    console.warn('[BreadRun] Could not load statuses:', err.message);
+    console.warn('[FreezerRun] Could not load statuses:', err.message);
   }
 }
 
@@ -299,30 +293,30 @@ function firebaseKey(str) {
 async function postStatus({ orderNum, route, customer, status, qtyMissing = null, replacementWare = null }) {
   if (!FIREBASE_URL) return;
   const key = firebaseKey(orderNum);
-  console.log(`[BreadRun] POST status — route=${route} customer="${customer}" item=${orderNum} status=${status}`);
+  console.log(`[FreezerRun] POST status — route=${route} customer="${customer}" item=${orderNum} status=${status}`);
   const body = { status, route, customer };
   if (qtyMissing      !== null) body.qtyMissing      = qtyMissing;
   if (replacementWare !== null) body.replacementWare = replacementWare;
   try {
-    const res = await fetch(`${FIREBASE_URL}/statuses/${key}.json`, {
+    const res = await fetch(`${FIREBASE_URL}/freezer-statuses/${key}.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
     if (!res.ok) {
       const errText = await res.text();
-      console.error(`[BreadRun] Firebase PUT denied — ${res.status} — key=${orderNum} body=${JSON.stringify(body)} — ${errText}`);
+      console.error(`[FreezerRun] Firebase PUT denied — ${res.status} — key=${orderNum} body=${JSON.stringify(body)} — ${errText}`);
     }
     // Stamp a lastModified timestamp so other clients can detect this change cheaply.
     const serverTimestamp = Date.now();
     lastFirebaseWriteTime = serverTimestamp;
-    fetch(`${FIREBASE_URL}/lastModified.json`, {
+    fetch(`${FIREBASE_URL}/freezer-lastModified.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(serverTimestamp),
     });
   } catch (err) {
-    console.warn('[BreadRun] Could not save status:', err.message);
+    console.warn('[FreezerRun] Could not save status:', err.message);
   }
 }
 
@@ -331,29 +325,29 @@ async function deleteStatus(orderNum) {
   if (!FIREBASE_URL) return;
   const key = firebaseKey(orderNum);
   try {
-    const res = await fetch(`${FIREBASE_URL}/statuses/${key}.json`, { method: 'DELETE' });
+    const res = await fetch(`${FIREBASE_URL}/freezer-statuses/${key}.json`, { method: 'DELETE' });
     if (!res.ok) {
       const errText = await res.text();
-      console.error(`[BreadRun] Firebase DELETE denied — ${res.status} — key=${orderNum} — ${errText}`);
+      console.error(`[FreezerRun] Firebase DELETE denied — ${res.status} — key=${orderNum} — ${errText}`);
     }
     const serverTimestamp = Date.now();
     lastFirebaseWriteTime = serverTimestamp;
-    fetch(`${FIREBASE_URL}/lastModified.json`, {
+    fetch(`${FIREBASE_URL}/freezer-lastModified.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(serverTimestamp),
     });
   } catch (err) {
-    console.warn('[BreadRun] Could not delete status:', err.message);
+    console.warn('[FreezerRun] Could not delete status:', err.message);
   }
 }
 
-// Polls /lastModified — a single tiny number — every 15 s.
+// Polls /freezer-lastModified — a single tiny number — every 15 s.
 // Only fetches full statuses when the timestamp has actually changed.
 async function pollForChanges() {
   if (!FIREBASE_URL || !routeDropdown.value) return;
   try {
-    const res = await fetch(`${FIREBASE_URL}/lastModified.json`);
+    const res = await fetch(`${FIREBASE_URL}/freezer-lastModified.json`);
     if (!res.ok) return;
     const serverTimestamp = await res.json();
     if (!serverTimestamp) return;
@@ -365,11 +359,11 @@ async function pollForChanges() {
     }
     if (serverTimestamp !== lastFirebaseWriteTime) {
       lastFirebaseWriteTime = serverTimestamp;
-      console.log('[BreadRun] Remote change detected — fetching statuses…');
+      console.log('[FreezerRun] Remote change detected — fetching statuses…');
       fetchStatuses();
     }
   } catch (err) {
-    console.warn('[BreadRun] Poll failed:', err.message);
+    console.warn('[FreezerRun] Poll failed:', err.message);
   }
 }
 
@@ -504,86 +498,6 @@ document.getElementById('summaryItems').addEventListener('change', e => {
   renderSummary(getRouteOrders(route));
 });
 
-// ─── CRATE VISUALISATION HELPERS ──────────────────────────────
-function getWareColors(orders) {
-  const wares = [...new Set(orders.map(o => o.ware))].sort();
-  const map = {};
-  wares.forEach((ware, i) => { map[ware] = CRATE_COLORS[i % CRATE_COLORS.length]; });
-  return map;
-}
-
-const CRATE_COMPACT_THRESHOLD = 50;
-
-function buildCrateData(custOrders, wareColors) {
-  const qtyByWare = {};
-  custOrders.forEach(o => { qtyByWare[o.ware] = (qtyByWare[o.ware] || 0) + o.qty; });
-  const sorted = Object.entries(qtyByWare).sort((a, b) => b[1] - a[1]);
-  const total = sorted.reduce((s, [, q]) => s + q, 0);
-  if (!total) return null;
-
-  // Flat color slots
-  const slots = [];
-  sorted.forEach(([ware, qty]) => {
-    const color = wareColors[ware] || '#888';
-    for (let i = 0; i < qty; i++) slots.push(color);
-  });
-
-  function makeOneCrate(size, startIdx) {
-    const cs = [];
-    for (let s = 0; s < size; s++) cs.push(startIdx + s < slots.length ? slots[startIdx + s] : null);
-    return { size, slots: cs };
-  }
-
-  if (total > CRATE_COMPACT_THRESHOLD) {
-    // Compact: show full-crate badge × count + one partial crate for the remainder
-    const fullBig = Math.floor(total / 10);
-    const rem = total % 10;
-    const partialCrate = rem > 0 ? makeOneCrate(rem > 5 ? 10 : 5, fullBig * 10) : null;
-    return { compact: true, total, fullBig, partialCrate };
-  }
-
-  // Full grid: individual crate slots
-  let bigCount = Math.floor(total / 10);
-  const remainder = total % 10;
-  let smallCount = 0;
-  if (remainder > 5)       bigCount++;
-  else if (remainder > 0)  smallCount = 1;
-
-  const crates = [];
-  let idx = 0;
-  for (let c = 0; c < bigCount; c++) { crates.push(makeOneCrate(10, idx)); idx += 10; }
-  if (smallCount)                      { crates.push(makeOneCrate(5,  idx)); }
-  return { compact: false, total, crates };
-}
-
-function renderOneCrate(crate) {
-  const rows = crate.size === 10 ? 2 : 1;
-  const cols = 5;
-  let h = '<div class="crate">';
-  for (let r = 0; r < rows; r++) {
-    h += '<div class="crate-row">';
-    for (let c = 0; c < cols; c++) {
-      const color = crate.slots[r * cols + c];
-      h += color ? `<div class="crate-slot" style="background:${color}"></div>`
-                 : '<div class="crate-slot empty"></div>';
-    }
-    h += '</div>';
-  }
-  return h + '</div>';
-}
-
-function crateVizHTML(data) {
-  if (!data) return '';
-  let html = '<div class="crate-bg">';
-  if (data.compact) {
-    if (data.fullBig > 0)   html += `<div class="crate-compact">\u25A0\u00D7${data.fullBig}</div>`;
-    if (data.partialCrate)  html += renderOneCrate(data.partialCrate);
-  } else {
-    data.crates.forEach(crate => { html += renderOneCrate(crate); });
-  }
-  return html + '</div>';
-}
-
 // ─── ORDER LIST ───────────────────────────────────────────────
 function renderOrders(orders) {
   // Preserve scroll position — don't jump to top on every checkbox tap
@@ -594,7 +508,6 @@ function renderOrders(orders) {
   const missingForRoute = itemMissingData[route] || {};
   const customerGroups  = sortedCustomers(orders);
   const isRouteComplete = orders.every(order => isItemResolved(route, order.itemId));
-  const wareColors      = getWareColors(orders);
 
   let html = '';
 
@@ -618,7 +531,6 @@ function renderOrders(orders) {
           <span class="customer-name">${customer}</span>
           ${isInProgress ? '<span class="status-pip"></span>' : ''}
           <span class="customer-tally ${isCustomerComplete ? 'tally-done' : ''}">${completedCount}/${custOrders.length}</span>
-          ${multiDept ? '' : crateVizHTML(buildCrateData(custOrders, wareColors))}
         </div>
         <div class="customer-orders">`;
 
@@ -632,7 +544,7 @@ function renderOrders(orders) {
         const deptOrders = custOrders.filter(order => order.dept === dept);
         const pending    = deptOrders.filter(order => !isItemResolved(route, order.itemId));
         const done       = deptOrders.filter(order =>  isItemResolved(route, order.itemId));
-        html += `<div class="dept-divider">${dept || '—'}${crateVizHTML(buildCrateData(deptOrders, wareColors))}</div>`;
+        html += `<div class="dept-divider">${dept || '—'}</div>`;
         [...pending, ...done].forEach(order => { html += cardHTML(order, checkedForRoute, missingForRoute); });
       });
     }
@@ -744,7 +656,7 @@ document.getElementById('content').addEventListener('change', async e => {
     delete itemMissingData[route][itemId];
     itemChecked[route][itemId] = false;
     if (tappedOrder && FIREBASE_URL) {
-      console.log(`[BreadRun] Missing cleared by tap — route=${route} ware="${tappedOrder.ware}"`);
+      console.log(`[FreezerRun] Missing cleared by tap — route=${route} ware="${tappedOrder.ware}"`);
       deleteStatus(tappedOrder.itemKey);
     }
     updateStats(routeOrders);
@@ -757,7 +669,7 @@ document.getElementById('content').addEventListener('change', async e => {
   // POST individual item state
   if (tappedOrder && FIREBASE_URL) {
     const isNowChecked = !!itemChecked[route][itemId];
-    console.log(`[BreadRun] Checkbox toggled — route=${route} customer="${tappedOrder.customer}" ware="${tappedOrder.ware}" → ${isNowChecked ? 'checked' : 'unchecked'}`);
+    console.log(`[FreezerRun] Checkbox toggled — route=${route} customer="${tappedOrder.customer}" ware="${tappedOrder.ware}" → ${isNowChecked ? 'checked' : 'unchecked'}`);
 
     // When a customer is fully done: show overlay, await the PUT, then GET fresh state
     // before re-rendering. This picks up any changes made by other drivers in the interim
@@ -822,7 +734,7 @@ document.getElementById('content').addEventListener('pointerdown', e => {
       delete itemMissingData[route][itemId];
       itemChecked[route][itemId] = false;
       if (FIREBASE_URL) deleteStatus(order.itemKey);
-      console.log(`[BreadRun] Long press: missing cleared — route=${route} ware="${order.ware}"`);
+      console.log(`[FreezerRun] Long press: missing cleared — route=${route} ware="${order.ware}"`);
     } else {
       // Not missing — mark as missing
       itemChecked[route][itemId] = false;
@@ -830,7 +742,7 @@ document.getElementById('content').addEventListener('pointerdown', e => {
       if (FIREBASE_URL) {
         postStatus({ orderNum: order.itemKey, route, customer: order.customer, status: 'missing' });
       }
-      console.log(`[BreadRun] Long press: marked missing — route=${route} ware="${order.ware}"`);
+      console.log(`[FreezerRun] Long press: marked missing — route=${route} ware="${order.ware}"`);
     }
 
     renderOrders(routeOrders);
@@ -948,20 +860,20 @@ async function resetFirebaseRoute(route, orders) {
   const wares = [...new Set(orders.map(order => order.ware))];
   wares.forEach(w => { nullPatch['SUMMARY|' + route + '|' + w] = null; });
   try {
-    await fetch(`${FIREBASE_URL}/statuses.json`, {
+    await fetch(`${FIREBASE_URL}/freezer-statuses.json`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(nullPatch),
     });
     const serverTimestamp = Date.now();
     lastFirebaseWriteTime = serverTimestamp;
-    fetch(`${FIREBASE_URL}/lastModified.json`, {
+    fetch(`${FIREBASE_URL}/freezer-lastModified.json`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(serverTimestamp),
     });
   } catch (err) {
-    console.warn('[BreadRun] Could not reset Firebase route:', err.message);
+    console.warn('[FreezerRun] Could not reset Firebase route:', err.message);
   }
 }
 

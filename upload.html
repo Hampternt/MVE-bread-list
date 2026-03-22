@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Upload Orders — MVE Delivery</title>
+  <link rel="icon" href="assets/bread-basket.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="src/style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"
+          crossorigin="anonymous"
+          referrerpolicy="no-referrer"></script>
+</head>
+<body>
+  <header class="header">
+    <a href="index.html" class="info-btn" style="margin-right:auto">← Back</a>
+    <span class="header-title">Upload Orders</span>
+  </header>
+
+  <main class="upload-main">
+    <div class="upload-card">
+      <h2>Choose list</h2>
+      <div class="upload-radio-group">
+        <label><input type="radio" name="collection" value="bread-orders" checked> 🍞 Bread orders</label>
+        <label><input type="radio" name="collection" value="freezer-orders"> ❄️ Freezer orders</label>
+      </div>
+
+      <h2>Choose file</h2>
+      <input type="file" id="fileInput" class="upload-file-input" accept=".csv,.xlsx">
+
+      <div id="preview" class="upload-preview hidden"></div>
+
+      <button id="uploadBtn" class="upload-btn" disabled>Upload to Firestore</button>
+
+      <div id="status" class="upload-status"></div>
+    </div>
+  </main>
+
+  <script src="src/upload-script.js"></script>
+</body>
+</html>
