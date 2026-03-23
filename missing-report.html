@@ -228,13 +228,16 @@
   <script>
     const FIREBASE_URL = 'https://mve-bread-default-rtdb.europe-west1.firebasedatabase.app';
 
+    const pin = sessionStorage.getItem('app-pin');
+    if (!pin) { location.replace('index.html'); }
+
     async function fetchMissing() {
       document.getElementById('loadingMsg').style.display = 'block';
       document.getElementById('errorMsg').style.display  = 'none';
       document.getElementById('report').style.display    = 'none';
 
       try {
-        const res = await fetch(`${FIREBASE_URL}/statuses.json`);
+        const res = await fetch(`${FIREBASE_URL}/${encodeURIComponent(pin)}/statuses.json`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         render(data);
