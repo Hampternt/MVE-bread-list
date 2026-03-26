@@ -1320,8 +1320,21 @@ input[type="checkbox"]:checked::after {
 .ws-stack-label.ws-label-done {
   color: var(--check);
 }
+.ws-stack-label.ws-label-predicted {
+  color: var(--muted);
+  font-style: italic;
+}
 .ws-stack-label.ws-label-empty {
   color: var(--border);
+}
+/* Dynamic floor states */
+.ws-crate-column.ws-state-predicted {
+  opacity: 0.35;
+}
+.ws-crate-column.ws-state-ready {
+  outline: 2px solid var(--check);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* ── RESPONSIVE (small phones) ──────────────────────────────── */

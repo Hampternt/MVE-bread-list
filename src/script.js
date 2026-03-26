@@ -1062,14 +1062,17 @@ function getStackingPrompts(batch, route) {
   return prompts;
 }
 
-// Render a visual workspace diagram showing floor stacks (active) and trolley stacks (completed).
-// Each customer occupies a floor position with their crates shown as vertical blocks.
-// Completed customers move to the trolley/pallet side.
+// Render a dynamic workspace diagram showing floor stacks and trolley stacks.
+// Floor positions are driven by actual check-off state:
+//  - "active": customer has ≥1 pick checked but isn't complete → shown with colored crate fills
+//  - "ready":  customer is complete but not yet stacked on transport → shown with done indicator
+//  - "predicted": not started yet, would be next if picking top-to-bottom → shown dimmed
+// Transport side shows stacked customers (as determined by stacking state machine).
 function renderWorkspaceDiagram(batch, route, wareColors) {
   if (!stackingState) return '';
   const st = stackingState;
 
-  // Build progress crate data for each customer, keyed by customer name
+  // Build progress crate data for each customer
   const custCrateMap = {};
   let crateNum = 1;
   for (const cust of batch.customers) {
@@ -1078,8 +1081,31 @@ function renderWorkspaceDiagram(batch, route, wareColors) {
     crateNum += pcs.length;
   }
 
-  // Split customers: floor (active) vs trolley (stacked/completed)
-  const floorCustomers = batch.customers.filter(c => !st.stackedCustomers.has(c.customer));
+  // Categorise customers by live state
+  const active = [];       // started picking, not complete, not stacked
+  const readyToStack = []; // complete, not yet stacked
+  const notStarted = [];   // no picks checked at all
+
+  for (const cust of batch.customers) {
+    if (st.stackedCustomers.has(cust.customer)) continue; // on transport already
+    const complete = isBatchCustomerComplete(route, cust.orders);
+    const started = cust.orders.some(o => isItemResolved(route, o.itemId));
+    if (complete)    readyToStack.push(cust);
+    else if (started) active.push(cust);
+    else              notStarted.push(cust);
+  }
+
+  // Floor shows: active + ready-to-stack + predicted (from not-started), dynamically sized
+  const floorOccupied = [...active, ...readyToStack];
+  const predictedCount = Math.max(0, FETCH_FLOOR_STACKS - floorOccupied.length);
+  const predicted = notStarted.slice(0, predictedCount);
+  const floorDisplay = [
+    ...floorOccupied.map(c => ({ cust: c, state: isBatchCustomerComplete(route, c.orders) ? 'ready' : 'active' })),
+    ...predicted.map(c => ({ cust: c, state: 'predicted' })),
+  ];
+  // Ensure we show at least as many slots as there are occupied + a few predicted
+  const floorSlots = Math.max(floorDisplay.length, Math.min(FETCH_FLOOR_STACKS, batch.customers.length));
+
   const transportLabel = st.transportMode === 'pallet' ? 'Pallet' : st.transportMode === 'single' ? 'Stack' : 'Trolley';
 
   let html = '<div class="workspace-diagram">';
@@ -1089,22 +1115,23 @@ function renderWorkspaceDiagram(batch, route, wareColors) {
   html += '<div class="ws-section-label">Floor</div>';
   html += '<div class="ws-stacks">';
 
-  // Show floor stack positions (always show FETCH_FLOOR_STACKS slots)
-  for (let fi = 0; fi < FETCH_FLOOR_STACKS; fi++) {
-    const cust = floorCustomers[fi];
+  for (let fi = 0; fi < floorSlots; fi++) {
+    const entry = floorDisplay[fi];
     html += '<div class="ws-stack">';
-    if (cust) {
+    if (entry) {
+      const { cust, state } = entry;
       const pcs = custCrateMap[cust.customer] || [];
-      const done = isBatchCustomerComplete(route, cust.orders);
-      // Render crates bottom-to-top (first crate at bottom)
-      html += '<div class="ws-crate-column">';
+      const stateClass = state === 'active' ? ' ws-state-active'
+        : state === 'ready' ? ' ws-state-ready'
+        : ' ws-state-predicted';
+
+      html += `<div class="ws-crate-column${stateClass}">`;
       for (let ci = pcs.length - 1; ci >= 0; ci--) {
         const pc = pcs[ci];
         const filledCount = pc.slots.filter(s => s && s.filled).length;
         const totalSlots = pc.slots.filter(s => s).length;
         const isCrateFull = filledCount === totalSlots && totalSlots > 0;
         html += `<div class="ws-crate-block${isCrateFull ? ' ws-crate-full' : ''}" title="${pc.label}: ${filledCount}/${totalSlots}">`;
-        // Mini color bar inside the block
         const uniqueColors = [...new Set(pc.slots.filter(s => s).map(s => s.color))];
         for (const color of uniqueColors) {
           const colorSlots = pc.slots.filter(s => s && s.color === color);
@@ -1116,7 +1143,10 @@ function renderWorkspaceDiagram(batch, route, wareColors) {
         html += '</div>';
       }
       html += '</div>';
-      html += `<div class="ws-stack-label${done ? ' ws-label-done' : ''}">${cust.customer}</div>`;
+      const labelClass = state === 'ready' ? ' ws-label-done'
+        : state === 'predicted' ? ' ws-label-predicted'
+        : '';
+      html += `<div class="ws-stack-label${labelClass}">${cust.customer}</div>`;
     } else {
       html += '<div class="ws-crate-column ws-empty-slot"></div>';
       html += '<div class="ws-stack-label ws-label-empty">---</div>';
@@ -1135,7 +1165,6 @@ function renderWorkspaceDiagram(batch, route, wareColors) {
     html += '<div class="ws-stack">';
     if (stack && stack.customers.length > 0) {
       html += '<div class="ws-crate-column">';
-      // Show each customer's crates in the stack (bottom to top)
       for (let ci = stack.customers.length - 1; ci >= 0; ci--) {
         const custName = stack.customers[ci];
         const pcs = custCrateMap[custName] || [];
