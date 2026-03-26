@@ -749,59 +749,110 @@ function getTransportStacks() {
   return FETCH_TROLLEY_STACKS;
 }
 
-// Build batches of customers based on floor space constraints.
-// Each customer uses 1 floor stack (or 0 if single-crate → goes straight to trolley).
-// Customers with > FETCH_MAX_STACK_HEIGHT crates get a dedicated floor stack.
+// Simulate the picking process for a candidate batch and return the peak number
+// of physical stack positions in use at any point (floor stacks + transport stacks).
+// This tells us whether a batch fits in the available space.
+function simulateMaxStacks(batch, wareColors) {
+  const seq = buildPickSequence(batch, wareColors);
+  if (!seq.length) return 0;
+
+  // Delivery order: lowest routeOrdering = first delivered = bottom of transport stack
+  const deliveryOrder = [...batch.customers].sort((a, b) => {
+    const aOrd = Math.max(...a.orders.map(o => o.routeOrdering));
+    const bOrd = Math.max(...b.orders.map(o => o.routeOrdering));
+    return aOrd - bOrd;
+  }).map(c => c.customer);
+  const deliveryIdx = {};
+  deliveryOrder.forEach((c, i) => { deliveryIdx[c] = i; });
+
+  const isSingle = {};
+  batch.customers.forEach(c => { isSingle[c.customer] = c.isSingleCrate; });
+
+  // Count pick-rows per customer
+  const pickTotal = {};
+  for (const pick of seq) {
+    for (const p of pick.picks) {
+      pickTotal[p.customer] = (pickTotal[p.customer] || 0) + 1;
+    }
+  }
+  const pickDone = {};
+  Object.keys(pickTotal).forEach(c => { pickDone[c] = 0; });
+
+  const onFloor = new Set();          // multi-crate customers currently on floor
+  const transportStacks = [];         // each: [custName, ...] bottom→top
+
+  let maxPositions = 0;
+
+  for (const pick of seq) {
+    for (const p of pick.picks) {
+      // Customer starts occupying a floor stack when first pick begins
+      if (!isSingle[p.customer]) onFloor.add(p.customer);
+      pickDone[p.customer]++;
+
+      if (pickDone[p.customer] === pickTotal[p.customer]) {
+        // Customer complete — move from floor to transport
+        onFloor.delete(p.customer);
+
+        // Try to stack on existing transport stack (next in delivery order)
+        let placed = false;
+        for (const stack of transportStacks) {
+          const topIdx = deliveryIdx[stack[stack.length - 1]];
+          if (deliveryIdx[p.customer] === topIdx + 1) {
+            stack.push(p.customer);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) {
+          // Start a new transport stack
+          transportStacks.push([p.customer]);
+        }
+      }
+
+      maxPositions = Math.max(maxPositions, onFloor.size + transportStacks.length);
+    }
+  }
+
+  return maxPositions;
+}
+
+// Build batches of customers by simulating the pick process.
+// Greedily grows each batch until adding the next customer would exceed
+// the total available stack positions (floor stacks + transport stacks).
 function rebuildFetchBatches(orders) {
   const wareColors = getWareColors(orders);
   const customers = sortedCustomers(orders); // LIFO: last delivery = first in list
   fetchBatches = [];
-  let batch = null;
-  let floorUsed = 0;
-  let trolleyUsed = 0;
-  const trolleySlots = getTransportStacks();
 
-  function flushBatch() {
-    if (batch && batch.customers.length > 0) {
-      batch.pickSequence = buildPickSequence(batch, wareColors);
-      fetchBatches.push(batch);
-    }
-    batch = { customers: [], pickSequence: [] };
-    floorUsed = 0;
-    trolleyUsed = 0;
-  }
-
-  flushBatch();
-
-  for (const [customer, { orders: custOrders }] of customers) {
+  // Pre-build customer data objects
+  const allCustData = customers.map(([customer, { orders: custOrders }]) => {
     const structured = buildCrateDataStructured(custOrders, wareColors);
     const crateCount = structured ? structured.crates.length : 0;
-    const isSingleCrate = crateCount <= 1;
+    return { customer, orders: custOrders, crateCount, isSingleCrate: crateCount <= 1, structured };
+  });
 
-    // Determine how many floor stacks this customer needs
-    let floorNeeded = isSingleCrate ? 0 : 1;
+  const totalSlots = FETCH_FLOOR_STACKS + getTransportStacks();
+  let i = 0;
 
-    // Check if this customer fits in the current batch
-    const wouldExceedFloor = floorUsed + floorNeeded > FETCH_FLOOR_STACKS;
-    const wouldExceedTrolley = isSingleCrate && trolleyUsed + 1 > trolleySlots;
+  while (i < allCustData.length) {
+    let bestSize = 1;
 
-    if (batch.customers.length > 0 && (wouldExceedFloor || (isSingleCrate && wouldExceedTrolley))) {
-      flushBatch();
+    for (let n = 2; n <= allCustData.length - i; n++) {
+      const candidate = { customers: allCustData.slice(i, i + n) };
+      const peak = simulateMaxStacks(candidate, wareColors);
+      if (peak <= totalSlots) {
+        bestSize = n;
+      } else {
+        break; // more customers can only increase peak positions
+      }
     }
 
-    batch.customers.push({
-      customer,
-      orders: custOrders,
-      crateCount,
-      isSingleCrate,
-      structured,
-    });
-
-    if (isSingleCrate) trolleyUsed++;
-    else floorUsed += floorNeeded;
+    const batch = { customers: allCustData.slice(i, i + bestSize) };
+    batch.pickSequence = buildPickSequence(batch, wareColors);
+    fetchBatches.push(batch);
+    i += bestSize;
   }
 
-  flushBatch();
   if (fetchCurrentBatchIndex >= fetchBatches.length) fetchCurrentBatchIndex = 0;
 }
 
