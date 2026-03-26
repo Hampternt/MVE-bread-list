@@ -985,6 +985,108 @@ function getStackingPrompts(batch, route) {
   return prompts;
 }
 
+// Render a visual workspace diagram showing floor stacks (active) and trolley stacks (completed).
+// Each customer occupies a floor position with their crates shown as vertical blocks.
+// Completed customers move to the trolley/pallet side.
+function renderWorkspaceDiagram(batch, route, wareColors) {
+  if (!stackingState) return '';
+  const st = stackingState;
+
+  // Build progress crate data for each customer, keyed by customer name
+  const custCrateMap = {};
+  let crateNum = 1;
+  for (const cust of batch.customers) {
+    const pcs = buildProgressCrates(cust, route, crateNum);
+    custCrateMap[cust.customer] = pcs;
+    crateNum += pcs.length;
+  }
+
+  // Split customers: floor (active) vs trolley (stacked/completed)
+  const floorCustomers = batch.customers.filter(c => !st.stackedCustomers.has(c.customer));
+  const transportLabel = st.transportMode === 'pallet' ? 'Pallet' : st.transportMode === 'single' ? 'Stack' : 'Trolley';
+
+  let html = '<div class="workspace-diagram">';
+
+  // ── Floor side ──
+  html += '<div class="ws-section">';
+  html += '<div class="ws-section-label">Floor</div>';
+  html += '<div class="ws-stacks">';
+
+  // Show floor stack positions (always show FETCH_FLOOR_STACKS slots)
+  for (let fi = 0; fi < FETCH_FLOOR_STACKS; fi++) {
+    const cust = floorCustomers[fi];
+    html += '<div class="ws-stack">';
+    if (cust) {
+      const pcs = custCrateMap[cust.customer] || [];
+      const done = isBatchCustomerComplete(route, cust.orders);
+      // Render crates bottom-to-top (first crate at bottom)
+      html += '<div class="ws-crate-column">';
+      for (let ci = pcs.length - 1; ci >= 0; ci--) {
+        const pc = pcs[ci];
+        const filledCount = pc.slots.filter(s => s && s.filled).length;
+        const totalSlots = pc.slots.filter(s => s).length;
+        const isCrateFull = filledCount === totalSlots && totalSlots > 0;
+        html += `<div class="ws-crate-block${isCrateFull ? ' ws-crate-full' : ''}" title="${pc.label}: ${filledCount}/${totalSlots}">`;
+        // Mini color bar inside the block
+        const uniqueColors = [...new Set(pc.slots.filter(s => s).map(s => s.color))];
+        for (const color of uniqueColors) {
+          const colorSlots = pc.slots.filter(s => s && s.color === color);
+          const colorFilled = colorSlots.filter(s => s.filled).length;
+          const pct = (colorFilled / colorSlots.length) * 100;
+          html += `<div class="ws-crate-fill" style="background:${color};opacity:${colorFilled > 0 ? 1 : 0.25};width:${Math.max(pct, 10)}%"></div>`;
+        }
+        html += `<span class="ws-crate-num">${pc.label}</span>`;
+        html += '</div>';
+      }
+      html += '</div>';
+      html += `<div class="ws-stack-label${done ? ' ws-label-done' : ''}">${cust.customer}</div>`;
+    } else {
+      html += '<div class="ws-crate-column ws-empty-slot"></div>';
+      html += '<div class="ws-stack-label ws-label-empty">---</div>';
+    }
+    html += '</div>';
+  }
+  html += '</div></div>';
+
+  // ── Trolley/Pallet side ──
+  html += '<div class="ws-section ws-section-transport">';
+  html += `<div class="ws-section-label">${transportLabel}</div>`;
+  html += '<div class="ws-stacks">';
+
+  for (let si = 0; si < st.maxStacks; si++) {
+    const stack = st.stacks[si];
+    html += '<div class="ws-stack">';
+    if (stack && stack.customers.length > 0) {
+      html += '<div class="ws-crate-column">';
+      // Show each customer's crates in the stack (bottom to top)
+      for (let ci = stack.customers.length - 1; ci >= 0; ci--) {
+        const custName = stack.customers[ci];
+        const pcs = custCrateMap[custName] || [];
+        for (let cri = pcs.length - 1; cri >= 0; cri--) {
+          const pc = pcs[cri];
+          html += `<div class="ws-crate-block ws-crate-full ws-crate-stacked" title="${custName} ${pc.label}">`;
+          const uniqueColors = [...new Set(pc.slots.filter(s => s).map(s => s.color))];
+          for (const color of uniqueColors) {
+            html += `<div class="ws-crate-fill" style="background:${color}"></div>`;
+          }
+          html += `<span class="ws-crate-num">${pc.label}</span>`;
+          html += '</div>';
+        }
+      }
+      html += '</div>';
+      html += `<div class="ws-stack-label ws-label-done">${stack.topCustomer}</div>`;
+    } else {
+      html += '<div class="ws-crate-column ws-empty-slot"></div>';
+      html += '<div class="ws-stack-label ws-label-empty">---</div>';
+    }
+    html += '</div>';
+  }
+
+  html += '</div></div>';
+  html += '</div>';
+  return html;
+}
+
 // Render the fetch mode view
 function renderFetchMode(orders) {
   const contentEl = document.getElementById('content');
@@ -1026,28 +1128,13 @@ function renderFetchMode(orders) {
     html += '</div>';
   }
 
-  // ── Stacking prompts ──
+  // ── Workspace diagram: floor stacks + trolley stacks ──
   const prompts = getStackingPrompts(batch, route);
+  html += renderWorkspaceDiagram(batch, route, wareColors);
+
+  // Stacking prompts (text instructions)
   for (const p of prompts) {
     html += `<div class="fetch-stack-prompt${p.type === 'wait' ? ' prompt-wait' : ''}">${p.message}</div>`;
-  }
-
-  // Stacking tracker (show current stack state)
-  if (stackingState.stacks.length > 0) {
-    html += '<div class="fetch-stacking">';
-    html += '<div class="fetch-stacking-title">Stacking</div>';
-    html += '<div class="fetch-stack-positions">';
-    for (let si = 0; si < stackingState.stacks.length; si++) {
-      const stack = stackingState.stacks[si];
-      html += '<div class="fetch-stack-pos">';
-      html += `<div class="fetch-stack-pos-label">Pos ${si + 1}</div>`;
-      for (let ci = stack.customers.length - 1; ci >= 0; ci--) {
-        const isTop = ci === stack.customers.length - 1;
-        html += `<div class="fetch-stack-customer${isTop ? ' is-top' : ''}">${stack.customers[ci]}</div>`;
-      }
-      html += '</div>';
-    }
-    html += '</div></div>';
   }
 
   // Batch complete banner
