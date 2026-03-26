@@ -854,16 +854,28 @@ function buildPickSequence(batch, wareColors) {
     });
   });
 
-  // Convert to array, sort: shared types first (more customers), then by total qty desc
+  // Sort pick sequence: follow customer order from the crate overview.
+  // Walk customers top-to-bottom; for each customer, emit their bread types in crate order.
+  // If a bread type was already emitted by a previous customer (shared type), skip it —
+  // it's already in the list at the earlier position. This lets the driver work top-down
+  // without jumping back to the crate overview to see what the next customer needs.
   const sequence = Object.entries(wareMap).map(([ware, data]) => {
     const uniqueCustomers = new Set(data.picks.map(p => p.customer)).size;
     const totalQty = data.picks.reduce((s, p) => s + p.qty, 0);
-    return { ware, ...data, uniqueCustomers, totalQty };
+    // Track the first customer index and first crate number where this ware appears
+    const firstPick = data.picks[0];
+    const firstCustomerIdx = batch.customers.findIndex(c => c.customer === firstPick.customer);
+    const firstCrateNum = firstPick.globalNum;
+    return { ware, ...data, uniqueCustomers, totalQty, firstCustomerIdx, firstCrateNum };
   });
 
+  // Primary: order of first customer that needs the bread (matches crate overview top-to-bottom)
+  // Secondary: crate number within that customer (crate #1 before #2)
+  // Tertiary: shared types slightly before single-customer types at the same customer position
   sequence.sort((a, b) => {
-    if (b.uniqueCustomers !== a.uniqueCustomers) return b.uniqueCustomers - a.uniqueCustomers;
-    return b.totalQty - a.totalQty;
+    if (a.firstCustomerIdx !== b.firstCustomerIdx) return a.firstCustomerIdx - b.firstCustomerIdx;
+    if (a.firstCrateNum !== b.firstCrateNum) return a.firstCrateNum - b.firstCrateNum;
+    return b.uniqueCustomers - a.uniqueCustomers;
   });
 
   return sequence;
