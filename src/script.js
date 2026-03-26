@@ -72,6 +72,18 @@ let itemMissingData    = {};
 // missingDetailTarget — { route, itemId, acceptAlts } | null — which card's detail sheet is open
 let missingDetailTarget = null;
 
+// ─── FETCH MODE STATE ─────────────────────────────────────────
+let fetchModeActive        = false;
+let fetchCurrentBatchIndex = 0;
+let fetchBatches           = [];
+// Physical space constraints
+const FETCH_FLOOR_STACKS     = 3;   // floor positions for active picking
+const FETCH_MAX_STACK_HEIGHT = 8;   // max crates per floor stack
+const FETCH_TROLLEY_STACKS   = 2;   // trolley output stacks (default)
+const FETCH_PALLET_STACKS    = 4;   // pallet output stacks
+// Stacking state machine — tracks where finished customers go
+let stackingState = null; // initialised per batch
+
 // ─── CSV PARSER ───────────────────────────────────────────────
 function parseCSV(text) {
   const rows  = [];
@@ -381,9 +393,16 @@ function loadRoute() {
   if (!route) {
     document.getElementById('summaryBox').style.display = 'none';
     document.getElementById('statsBar').style.display   = 'none';
+    document.getElementById('fetchBar').style.display   = 'none';
+    document.getElementById('fetchModeBtn').style.display = 'none';
     showMsg('🚚', 'Select your route to begin');
     return;
   }
+  document.getElementById('fetchModeBtn').style.display = 'flex';
+  // Reset fetch batches when route changes
+  fetchBatches = [];
+  fetchCurrentBatchIndex = 0;
+  stackingState = null;
   renderCurrentRoute();
 }
 
@@ -398,8 +417,17 @@ function renderCurrentRoute() {
 
   document.getElementById('statsBar').style.display = 'flex';
   updateStats(orders);
-  renderSummary(orders);
-  renderOrders(orders);
+
+  if (fetchModeActive) {
+    document.getElementById('summaryBox').style.display = 'none';
+    document.getElementById('fetchBar').style.display   = 'flex';
+    if (!fetchBatches.length) rebuildFetchBatches(orders);
+    renderFetchMode(orders);
+  } else {
+    document.getElementById('fetchBar').style.display   = 'none';
+    renderSummary(orders);
+    renderOrders(orders);
+  }
 }
 
 // Returns all orders for a given route
@@ -650,6 +678,362 @@ function crateVizHTML(data) {
   return html + '</div>';
 }
 
+// ─── FETCH MODE ──────────────────────────────────────────────
+
+// How many output stacks the selected transport allows
+function getTransportStacks() {
+  const mode = document.getElementById('fetchTransport').value;
+  if (mode === 'pallet') return FETCH_PALLET_STACKS;
+  if (mode === 'single') return 1;
+  return FETCH_TROLLEY_STACKS;
+}
+
+// Build batches of customers based on floor space constraints.
+// Each customer uses 1 floor stack (or 0 if single-crate → goes straight to trolley).
+// Customers with > FETCH_MAX_STACK_HEIGHT crates get a dedicated floor stack.
+function rebuildFetchBatches(orders) {
+  const wareColors = getWareColors(orders);
+  const customers = sortedCustomers(orders); // LIFO: last delivery = first in list
+  fetchBatches = [];
+  let batch = null;
+  let floorUsed = 0;
+  let trolleyUsed = 0;
+  const trolleySlots = getTransportStacks();
+
+  function flushBatch() {
+    if (batch && batch.customers.length > 0) {
+      batch.pickSequence = buildPickSequence(batch, wareColors);
+      fetchBatches.push(batch);
+    }
+    batch = { customers: [], pickSequence: [] };
+    floorUsed = 0;
+    trolleyUsed = 0;
+  }
+
+  flushBatch();
+
+  for (const [customer, { orders: custOrders }] of customers) {
+    const structured = buildCrateDataStructured(custOrders, wareColors);
+    const crateCount = structured ? structured.crates.length : 0;
+    const isSingleCrate = crateCount <= 1;
+
+    // Determine how many floor stacks this customer needs
+    let floorNeeded = isSingleCrate ? 0 : 1;
+
+    // Check if this customer fits in the current batch
+    const wouldExceedFloor = floorUsed + floorNeeded > FETCH_FLOOR_STACKS;
+    const wouldExceedTrolley = isSingleCrate && trolleyUsed + 1 > trolleySlots;
+
+    if (batch.customers.length > 0 && (wouldExceedFloor || (isSingleCrate && wouldExceedTrolley))) {
+      flushBatch();
+    }
+
+    batch.customers.push({
+      customer,
+      orders: custOrders,
+      crateCount,
+      isSingleCrate,
+      structured,
+    });
+
+    if (isSingleCrate) trolleyUsed++;
+    else floorUsed += floorNeeded;
+  }
+
+  flushBatch();
+  if (fetchCurrentBatchIndex >= fetchBatches.length) fetchCurrentBatchIndex = 0;
+}
+
+// Build the pick sequence for a batch: one entry per bread type, shared types first.
+function buildPickSequence(batch, wareColors) {
+  // Assign crate labels per customer
+  let globalCrate = 1;
+  const crateAssignments = []; // parallel to batch.customers
+
+  for (const cust of batch.customers) {
+    const custCrates = [];
+    if (cust.structured) {
+      for (const crate of cust.structured.crates) {
+        custCrates.push({ crateLabel: `#${globalCrate}`, globalNum: globalCrate, crate });
+        globalCrate++;
+      }
+    }
+    crateAssignments.push(custCrates);
+  }
+
+  // Group by ware across all customers in the batch
+  const wareMap = {}; // ware → { supplier, color, picks: [...] }
+
+  batch.customers.forEach((cust, ci) => {
+    const custCrates = crateAssignments[ci];
+    // For each crate, for each item in that crate
+    custCrates.forEach(({ crateLabel, globalNum, crate }) => {
+      crate.items.forEach(item => {
+        if (!wareMap[item.ware]) {
+          // Find a representative order for supplier info
+          const sampleOrder = cust.orders.find(o => o.ware === item.ware) || {};
+          wareMap[item.ware] = {
+            supplier: sampleOrder.supplier || '',
+            color: item.color,
+            picks: [],
+          };
+        }
+        // Find which orderItemIds map to this ware+customer combo
+        const orderItemIds = cust.orders
+          .filter(o => o.ware === item.ware)
+          .map(o => o.itemId);
+
+        wareMap[item.ware].picks.push({
+          customer: cust.customer,
+          crateLabel,
+          globalNum,
+          qty: item.qty,
+          orderItemIds,
+        });
+      });
+    });
+  });
+
+  // Convert to array, sort: shared types first (more customers), then by total qty desc
+  const sequence = Object.entries(wareMap).map(([ware, data]) => {
+    const uniqueCustomers = new Set(data.picks.map(p => p.customer)).size;
+    const totalQty = data.picks.reduce((s, p) => s + p.qty, 0);
+    return { ware, ...data, uniqueCustomers, totalQty };
+  });
+
+  sequence.sort((a, b) => {
+    if (b.uniqueCustomers !== a.uniqueCustomers) return b.uniqueCustomers - a.uniqueCustomers;
+    return b.totalQty - a.totalQty;
+  });
+
+  return sequence;
+}
+
+// Initialise stacking state for a batch
+function initStackingState(batch) {
+  // Delivery queue: customers in delivery order (lowest routeOrdering first = delivered first = bottom of stack)
+  const deliveryQueue = [...batch.customers].sort((a, b) => {
+    const aOrd = Math.max(...a.orders.map(o => o.routeOrdering));
+    const bOrd = Math.max(...b.orders.map(o => o.routeOrdering));
+    return aOrd - bOrd;
+  }).map(c => c.customer);
+
+  stackingState = {
+    transportMode: document.getElementById('fetchTransport').value,
+    maxStacks: getTransportStacks(),
+    stacks: [],         // [{ customers: [name,...], topCustomer: name }]
+    deliveryQueue,      // lowest ordering first (bottom of stack → top)
+    nextToStack: 0,     // index into deliveryQueue for ideal next
+    completedCustomers: new Set(),
+    stackedCustomers: new Set(),
+  };
+}
+
+// Check if a customer in the current batch is fully picked
+function isBatchCustomerComplete(route, custOrders) {
+  return custOrders.every(order => isItemResolved(route, order.itemId));
+}
+
+// Process stacking: determine prompts for completed customers
+function getStackingPrompts(batch, route) {
+  if (!stackingState) initStackingState(batch);
+  const st = stackingState;
+  const prompts = [];
+
+  // Update completed set
+  for (const cust of batch.customers) {
+    if (isBatchCustomerComplete(route, cust.orders)) {
+      st.completedCustomers.add(cust.customer);
+    } else {
+      st.completedCustomers.delete(cust.customer);
+    }
+  }
+
+  // Try to stack customers in delivery order
+  while (st.nextToStack < st.deliveryQueue.length) {
+    const nextCust = st.deliveryQueue[st.nextToStack];
+    if (!st.completedCustomers.has(nextCust) || st.stackedCustomers.has(nextCust)) break;
+
+    // Find a stack to put this customer on
+    // Prefer existing stack with most customers (they're in order)
+    let targetStack = null;
+    for (const stack of st.stacks) {
+      // Can stack on top if stack height allows
+      if (stack.customers.length < FETCH_MAX_STACK_HEIGHT) {
+        targetStack = stack;
+        break;
+      }
+    }
+    if (!targetStack && st.stacks.length < st.maxStacks) {
+      targetStack = { customers: [], topCustomer: null };
+      st.stacks.push(targetStack);
+    }
+    if (!targetStack) break; // no space
+
+    targetStack.customers.push(nextCust);
+    targetStack.topCustomer = nextCust;
+    st.stackedCustomers.add(nextCust);
+    st.nextToStack++;
+
+    const pos = st.stacks.indexOf(targetStack) + 1;
+    const isBottom = targetStack.customers.length === 1;
+    prompts.push({
+      customer: nextCust,
+      message: `${nextCust} done! Stack on Position ${pos}${isBottom ? ' (bottom)' : ` (on top of ${targetStack.customers[targetStack.customers.length - 2]})`}`,
+      type: 'ready',
+    });
+  }
+
+  // Check for out-of-order completed customers that aren't stacked yet
+  for (const cust of batch.customers) {
+    if (st.completedCustomers.has(cust.customer) &&
+        !st.stackedCustomers.has(cust.customer) &&
+        cust.customer !== st.deliveryQueue[st.nextToStack]) {
+      // Can we start a new stack for this out-of-order customer?
+      if (st.stacks.length < st.maxStacks) {
+        const newStack = { customers: [cust.customer], topCustomer: cust.customer };
+        st.stacks.push(newStack);
+        st.stackedCustomers.add(cust.customer);
+        const pos = st.stacks.length;
+        prompts.push({
+          customer: cust.customer,
+          message: `${cust.customer} done! Start new stack (Position ${pos})`,
+          type: 'ready',
+        });
+      } else {
+        prompts.push({
+          customer: cust.customer,
+          message: `${cust.customer} done — waiting for ${st.deliveryQueue[st.nextToStack]} to finish before stacking`,
+          type: 'wait',
+        });
+      }
+    }
+  }
+
+  return prompts;
+}
+
+// Render the fetch mode view
+function renderFetchMode(orders) {
+  const contentEl = document.getElementById('content');
+  const scrollPosition = window.scrollY;
+  const route = orders[0].route;
+
+  if (!fetchBatches.length) { contentEl.innerHTML = ''; return; }
+  const batch = fetchBatches[fetchCurrentBatchIndex];
+  if (!batch) { contentEl.innerHTML = ''; return; }
+
+  // Ensure stacking state exists for this batch
+  if (!stackingState) initStackingState(batch);
+
+  const wareColors = getWareColors(orders);
+  let html = '';
+
+  // Batch header with floor layout
+  const floorCustomers = batch.customers.filter(c => !c.isSingleCrate);
+  const trolleyCustomers = batch.customers.filter(c => c.isSingleCrate);
+
+  html += '<div class="fetch-batch-header">';
+  html += `<div class="fetch-batch-title">Batch ${fetchCurrentBatchIndex + 1} of ${fetchBatches.length}</div>`;
+  html += '<div class="fetch-floor-layout">';
+  for (const cust of floorCustomers) {
+    const done = isBatchCustomerComplete(route, cust.orders);
+    html += `<div class="fetch-floor-slot${done ? ' slot-done' : ''}">${cust.customer} ${cust.crateCount} crate${cust.crateCount !== 1 ? 's' : ''}</div>`;
+  }
+  if (trolleyCustomers.length) {
+    for (const cust of trolleyCustomers) {
+      const done = isBatchCustomerComplete(route, cust.orders);
+      html += `<div class="fetch-floor-slot slot-trolley${done ? ' slot-done' : ''}">${cust.customer} 1 crate</div>`;
+    }
+  }
+  html += '</div></div>';
+
+  // Stacking prompts
+  const prompts = getStackingPrompts(batch, route);
+  for (const p of prompts) {
+    html += `<div class="fetch-stack-prompt${p.type === 'wait' ? ' prompt-wait' : ''}">${p.message}</div>`;
+  }
+
+  // Stacking tracker (show current stack state)
+  if (stackingState.stacks.length > 0) {
+    html += '<div class="fetch-stacking">';
+    html += '<div class="fetch-stacking-title">Stacking</div>';
+    html += '<div class="fetch-stack-positions">';
+    for (let si = 0; si < stackingState.stacks.length; si++) {
+      const stack = stackingState.stacks[si];
+      html += '<div class="fetch-stack-pos">';
+      html += `<div class="fetch-stack-pos-label">Pos ${si + 1}</div>`;
+      for (let ci = stack.customers.length - 1; ci >= 0; ci--) {
+        const isTop = ci === stack.customers.length - 1;
+        html += `<div class="fetch-stack-customer${isTop ? ' is-top' : ''}">${stack.customers[ci]}</div>`;
+      }
+      html += '</div>';
+    }
+    html += '</div></div>';
+  }
+
+  // Check if batch is fully complete
+  const batchComplete = batch.customers.every(c => isBatchCustomerComplete(route, c.orders));
+  if (batchComplete) {
+    html += '<div class="fetch-batch-done">Batch complete!</div>';
+  }
+
+  // Pick sequence cards
+  for (const pick of batch.pickSequence) {
+    const allChecked = pick.picks.every(p =>
+      p.orderItemIds.every(id => isItemResolved(route, id))
+    );
+
+    html += `<div class="fetch-pick-card${allChecked ? ' pick-done' : ''}">`;
+    html += '<div class="fetch-pick-header">';
+    html += `<div class="fetch-color-swatch" style="background:${pick.color}"></div>`;
+    html += `<span class="fetch-ware-name">${pick.ware}</span>`;
+    if (pick.uniqueCustomers > 1) {
+      html += `<span class="fetch-shared-badge">x${pick.uniqueCustomers}</span>`;
+    }
+    html += `<span class="fetch-ware-total">${pick.totalQty} stk</span>`;
+    html += supplierIconHTML(pick.supplier);
+    html += '</div>';
+
+    // Sub-rows: pending first, checked last
+    const pending = pick.picks.filter(p => !p.orderItemIds.every(id => isItemResolved(route, id)));
+    const done = pick.picks.filter(p => p.orderItemIds.every(id => isItemResolved(route, id)));
+    const sortedPicks = [...pending, ...done];
+
+    for (const p of sortedPicks) {
+      const isChecked = p.orderItemIds.every(id => isItemResolved(route, id));
+      // Store orderItemIds as data attributes for the checkbox handler
+      html += `<label class="fetch-pick-row${isChecked ? ' row-checked' : ''}" data-order-ids="${p.orderItemIds.join(',')}">`;
+      html += `<input type="checkbox" ${isChecked ? 'checked' : ''}>`;
+      html += `<span class="fetch-crate-ref">Crate ${p.crateLabel} (${p.customer})</span>`;
+      html += `<span class="fetch-pick-qty">${p.qty} stk</span>`;
+      html += '</label>';
+    }
+
+    html += '</div>';
+  }
+
+  // Crate overview per customer
+  html += '<div style="margin-top:16px">';
+  for (const cust of batch.customers) {
+    const done = isBatchCustomerComplete(route, cust.orders);
+    html += `<div class="customer-group${done ? ' cg-done' : ''}" style="margin-bottom:8px">`;
+    html += `<div class="customer-header"><span class="customer-name">${cust.customer}</span>`;
+    html += crateVizHTML(buildCrateData(cust.orders, wareColors));
+    html += '</div></div>';
+  }
+  html += '</div>';
+
+  html += '<button class="reset-btn">↺ Reset checklist</button>';
+  contentEl.innerHTML = html;
+  window.scrollTo({ top: scrollPosition, behavior: 'instant' });
+
+  // Update nav buttons
+  document.getElementById('fetchPrevBtn').disabled = fetchCurrentBatchIndex <= 0;
+  document.getElementById('fetchNextBtn').disabled = fetchCurrentBatchIndex >= fetchBatches.length - 1;
+  document.getElementById('fetchBatchLabel').textContent = `Batch ${fetchCurrentBatchIndex + 1} / ${fetchBatches.length}`;
+}
+
 // ─── ORDER LIST ───────────────────────────────────────────────
 function renderOrders(orders) {
   // Preserve scroll position — don't jump to top on every checkbox tap
@@ -791,9 +1175,36 @@ function cardHTML(order, checkedForRoute, missingForRoute = {}) {
 }
 
 // Delegated listener on content — survives innerHTML replacement in renderOrders.
-// Handles order-card checkboxes. On a missing card: tap clears missing → unchecked.
+// Handles order-card checkboxes AND fetch-mode pick-row checkboxes.
 document.getElementById('content').addEventListener('change', async e => {
   if (!e.target.matches('input[type="checkbox"]')) return;
+
+  // ── FETCH MODE pick-row checkbox ──
+  const pickRow = e.target.closest('.fetch-pick-row');
+  if (pickRow) {
+    const route = routeDropdown.value;
+    if (!itemChecked[route]) itemChecked[route] = {};
+    const orderIds = pickRow.dataset.orderIds.split(',');
+    const routeOrders = getRouteOrders(route);
+    const isNowChecked = e.target.checked;
+
+    for (const id of orderIds) {
+      itemChecked[route][id] = isNowChecked;
+      const order = routeOrders.find(o => o.itemId === id);
+      if (order && FIREBASE_URL) {
+        if (isNowChecked) {
+          postStatus({ orderNum: order.itemKey, route, customer: order.customer, status: 'checked' });
+        } else {
+          deleteStatus(order.itemKey);
+        }
+      }
+    }
+    updateStats(routeOrders);
+    renderFetchMode(routeOrders);
+    return;
+  }
+
+  // ── Normal mode order-card checkbox ──
   const orderCard = e.target.closest('.order-card');
   if (!orderCard) return;
   const itemId = orderCard.dataset.item;
@@ -1000,9 +1411,12 @@ function doReset() {
   itemChecked[route]        = {};
   itemMissingData[route]    = {};
   summaryTypeChecked[route] = {};
+  // Reset fetch mode state too
+  fetchBatches = [];
+  fetchCurrentBatchIndex = 0;
+  stackingState = null;
   updateStats(orders);
-  renderSummary(orders);
-  renderOrders(orders);
+  renderCurrentRoute();
   resetFirebaseRoute(route, orders); // async, fire-and-forget
 }
 
@@ -1050,4 +1464,39 @@ document.querySelector('.missing-detail-cancel').addEventListener('click', close
 document.querySelector('.missing-detail-save').addEventListener('click', saveMissingDetail);
 document.getElementById('missingDetailOverlay').addEventListener('click', function (e) {
   if (e.target === this) closeMissingDetail();
+});
+
+// ─── FETCH MODE WIRING ──────────────────────────────────────
+document.getElementById('fetchModeBtn').addEventListener('click', () => {
+  fetchModeActive = !fetchModeActive;
+  document.getElementById('fetchModeBtn').classList.toggle('active', fetchModeActive);
+  document.getElementById('fetchModeBtn').textContent = fetchModeActive ? 'Exit Fetch' : 'Fetch Mode';
+  // Rebuild batches when entering fetch mode
+  if (fetchModeActive) {
+    fetchBatches = [];
+    fetchCurrentBatchIndex = 0;
+    stackingState = null;
+  }
+  renderCurrentRoute();
+});
+document.getElementById('fetchPrevBtn').addEventListener('click', () => {
+  if (fetchCurrentBatchIndex > 0) {
+    fetchCurrentBatchIndex--;
+    stackingState = null;
+    renderCurrentRoute();
+  }
+});
+document.getElementById('fetchNextBtn').addEventListener('click', () => {
+  if (fetchCurrentBatchIndex < fetchBatches.length - 1) {
+    fetchCurrentBatchIndex++;
+    stackingState = null;
+    renderCurrentRoute();
+  }
+});
+document.getElementById('fetchTransport').addEventListener('change', () => {
+  // Rebuild batches with new transport setting (affects trolley slot count)
+  fetchBatches = [];
+  fetchCurrentBatchIndex = 0;
+  stackingState = null;
+  if (fetchModeActive) renderCurrentRoute();
 });

@@ -886,6 +886,281 @@ input[type="checkbox"]:checked::after {
   letter-spacing: 0.04em;
 }
 
+/* ── FETCH MODE ────────────────────────────────────────────── */
+.fetch-mode-btn {
+  background: rgba(0, 0, 0, 0.12);
+  border: 2px solid rgba(0, 0, 0, 0.18);
+  color: rgba(26, 26, 24, 0.75);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 14px;
+  border-radius: 3px;
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+.fetch-mode-btn:active { background: rgba(0, 0, 0, 0.25); }
+.fetch-mode-btn.active {
+  background: rgba(0, 0, 0, 0.35);
+  border-color: rgba(0, 0, 0, 0.45);
+  color: #1a1a18;
+}
+
+/* Fetch bar — batch navigation + transport selector */
+.fetch-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.fetch-bar-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+}
+.fetch-batch-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+  color: var(--accent);
+  font-weight: 500;
+  min-width: 100px;
+  text-align: center;
+}
+.fetch-nav-btn {
+  background: var(--border);
+  border: none;
+  color: var(--text);
+  font-size: 16px;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fetch-nav-btn:disabled { opacity: 0.3; cursor: default; }
+.fetch-nav-btn:not(:disabled):active { background: var(--accent-dim); }
+
+.fetch-bar-transport {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fetch-transport-label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.fetch-bar-transport select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px;
+}
+
+/* Fetch batch header */
+.fetch-batch-header {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.fetch-batch-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.fetch-floor-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 13px;
+}
+.fetch-floor-slot {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  color: var(--text);
+}
+.fetch-floor-slot.slot-trolley {
+  border-color: var(--accent-dim);
+  color: var(--accent);
+}
+.fetch-floor-slot.slot-done {
+  background: var(--done-bg);
+  color: var(--check);
+  border-color: #2a5a30;
+}
+
+/* Pick sequence card (one per bread type) */
+.fetch-pick-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 8px;
+  overflow: hidden;
+}
+.fetch-pick-card.pick-done {
+  opacity: 0.55;
+}
+.fetch-pick-header {
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.fetch-color-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.fetch-ware-name {
+  font-size: 16px;
+  font-weight: 700;
+  flex: 1;
+}
+.fetch-ware-total {
+  font-family: 'DM Mono', monospace;
+  font-size: 14px;
+  color: var(--accent);
+}
+.fetch-shared-badge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #1a1a18;
+  background: var(--accent);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* Pick sub-rows (one per customer/crate needing this bread) */
+.fetch-pick-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(58, 58, 50, 0.4);
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.fetch-pick-row:last-child { border-bottom: none; }
+.fetch-pick-row.row-checked {
+  background: var(--done-bg);
+  opacity: 0.7;
+}
+.fetch-pick-row input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--check);
+  flex-shrink: 0;
+}
+.fetch-crate-ref {
+  font-size: 14px;
+  color: var(--text);
+  flex: 1;
+}
+.fetch-pick-qty {
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Stacking tracker */
+.fetch-stacking {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+.fetch-stacking-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+.fetch-stack-positions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.fetch-stack-pos {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  min-width: 80px;
+  font-size: 12px;
+}
+.fetch-stack-pos-label {
+  font-family: 'DM Mono', monospace;
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+.fetch-stack-customer {
+  font-size: 13px;
+  color: var(--text);
+}
+.fetch-stack-customer.is-top {
+  color: var(--check);
+  font-weight: 700;
+}
+
+/* Stacking prompt — appears when a customer is ready */
+.fetch-stack-prompt {
+  background: #1a3520;
+  border: 1px solid #2a5a30;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--check);
+  font-weight: 600;
+}
+.fetch-stack-prompt.prompt-wait {
+  background: #35351a;
+  border-color: #5a5a2a;
+  color: var(--accent);
+}
+
+/* Batch complete banner */
+.fetch-batch-done {
+  text-align: center;
+  padding: 20px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--check);
+}
+
 /* ── RESPONSIVE (small phones) ──────────────────────────────── */
 @media (max-width: 600px) {
   .info-btn       { display: none; }

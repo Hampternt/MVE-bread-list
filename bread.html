@@ -27,6 +27,7 @@
       <a class="info-btn" href="missing-report.html">Missing items</a>
       <a href="freezer.html" class="info-btn">❄️ Freezer list</a>
       <a class="info-btn" href="project-map.html">How the magic is done</a>
+      <button class="fetch-mode-btn" id="fetchModeBtn" style="display:none">Fetch Mode</button>
       <button class="refresh-btn">↻ Refresh</button>
     </div>
   </header>
@@ -59,6 +60,23 @@
       <span class="summary-chevron" id="summaryChevron">▼</span>
     </div>
     <div class="summary-items" id="summaryItems"></div>
+  </div>
+
+  <!-- FETCH MODE BAR -->
+  <div class="fetch-bar" id="fetchBar" style="display:none">
+    <div class="fetch-bar-top">
+      <button class="fetch-nav-btn" id="fetchPrevBtn" disabled>&#9664;</button>
+      <span class="fetch-batch-label" id="fetchBatchLabel">Batch 1 / 1</span>
+      <button class="fetch-nav-btn" id="fetchNextBtn" disabled>&#9654;</button>
+    </div>
+    <div class="fetch-bar-transport">
+      <span class="fetch-transport-label">Transport:</span>
+      <select id="fetchTransport">
+        <option value="trolley">Trolley (2 stacks)</option>
+        <option value="pallet">Pallet (4 stacks)</option>
+        <option value="single">Single stack</option>
+      </select>
+    </div>
   </div>
 
   <!-- MAIN CONTENT (customer groups + order cards) -->
