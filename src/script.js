@@ -678,6 +678,66 @@ function crateVizHTML(data) {
   return html + '</div>';
 }
 
+// Progress-aware crate rendering for fetch mode.
+// Each slot can be 'filled' (checked), 'pending' (outlined), or 'empty' (no bread assigned).
+function renderOneCrateProgress(crate, label) {
+  const rows = crate.size === 10 ? 2 : 1;
+  const cols = 5;
+  let h = `<div class="crate-progress">`;
+  if (label) h += `<div class="crate-label">${label}</div>`;
+  h += '<div class="crate">';
+  for (let r = 0; r < rows; r++) {
+    h += '<div class="crate-row">';
+    for (let c = 0; c < cols; c++) {
+      const slot = crate.slots[r * cols + c];
+      if (!slot) {
+        h += '<div class="crate-slot empty"></div>';
+      } else if (slot.filled) {
+        h += `<div class="crate-slot" style="background:${slot.color}"></div>`;
+      } else {
+        h += `<div class="crate-slot crate-slot-pending" style="border-color:${slot.color};color:${slot.color}"></div>`;
+      }
+    }
+    h += '</div>';
+  }
+  h += '</div></div>';
+  return h;
+}
+
+// Build progress slot data for a customer's crates based on check state.
+// Returns array of { size, slots: [{color, filled}|null], label } — one per crate.
+function buildProgressCrates(custData, route, globalStartNum) {
+  if (!custData.structured) return [];
+  const crates = custData.structured.crates;
+  const result = [];
+  let crateNum = globalStartNum;
+
+  for (const crate of crates) {
+    const slots = [];
+    for (const item of crate.items) {
+      // How many of this ware's orders are checked for this customer?
+      const wareOrders = custData.orders.filter(o => o.ware === item.ware);
+      const totalWareQty = wareOrders.reduce((s, o) => s + o.qty, 0);
+      const checkedQty = wareOrders
+        .filter(o => isItemResolved(route, o.itemId))
+        .reduce((s, o) => s + o.qty, 0);
+
+      // Proportion checked for this ware across all orders
+      const ratio = totalWareQty > 0 ? checkedQty / totalWareQty : 0;
+      const filledCount = Math.round(item.qty * ratio);
+
+      for (let i = 0; i < item.qty; i++) {
+        slots.push({ color: item.color, filled: i < filledCount });
+      }
+    }
+    // Pad to crate size
+    while (slots.length < crate.size) slots.push(null);
+    result.push({ size: crate.size, slots, label: `#${crateNum}` });
+    crateNum++;
+  }
+  return result;
+}
+
 // ─── FETCH MODE ──────────────────────────────────────────────
 
 // How many output stacks the selected transport allows
@@ -929,26 +989,32 @@ function renderFetchMode(orders) {
   const wareColors = getWareColors(orders);
   let html = '';
 
-  // Batch header with floor layout
-  const floorCustomers = batch.customers.filter(c => !c.isSingleCrate);
-  const trolleyCustomers = batch.customers.filter(c => c.isSingleCrate);
+  // ── Customer crate overview at the top — shows progress as slots fill up ──
+  let globalCrateNum = 1;
+  html += `<div class="fetch-batch-header"><div class="fetch-batch-title">Batch ${fetchCurrentBatchIndex + 1} of ${fetchBatches.length}</div></div>`;
 
-  html += '<div class="fetch-batch-header">';
-  html += `<div class="fetch-batch-title">Batch ${fetchCurrentBatchIndex + 1} of ${fetchBatches.length}</div>`;
-  html += '<div class="fetch-floor-layout">';
-  for (const cust of floorCustomers) {
+  for (const cust of batch.customers) {
     const done = isBatchCustomerComplete(route, cust.orders);
-    html += `<div class="fetch-floor-slot${done ? ' slot-done' : ''}">${cust.customer} ${cust.crateCount} crate${cust.crateCount !== 1 ? 's' : ''}</div>`;
-  }
-  if (trolleyCustomers.length) {
-    for (const cust of trolleyCustomers) {
-      const done = isBatchCustomerComplete(route, cust.orders);
-      html += `<div class="fetch-floor-slot slot-trolley${done ? ' slot-done' : ''}">${cust.customer} 1 crate</div>`;
-    }
-  }
-  html += '</div></div>';
+    const completedCount = cust.orders.filter(o => isItemResolved(route, o.itemId)).length;
+    const progressCrates = buildProgressCrates(cust, route, globalCrateNum);
+    globalCrateNum += progressCrates.length;
 
-  // Stacking prompts
+    html += `<div class="fetch-cust-crates${done ? ' cust-done' : ''}">`;
+    html += '<div class="fetch-cust-header-row">';
+    html += `<span class="fetch-cust-name">${cust.customer}</span>`;
+    html += `<span class="fetch-cust-tally${done ? ' tally-done' : ''}">${completedCount}/${cust.orders.length}</span>`;
+    html += '</div>';
+    if (progressCrates.length) {
+      html += '<div class="fetch-crate-row">';
+      for (const pc of progressCrates) {
+        html += renderOneCrateProgress(pc, pc.label);
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+  }
+
+  // ── Stacking prompts ──
   const prompts = getStackingPrompts(batch, route);
   for (const p of prompts) {
     html += `<div class="fetch-stack-prompt${p.type === 'wait' ? ' prompt-wait' : ''}">${p.message}</div>`;
@@ -972,13 +1038,13 @@ function renderFetchMode(orders) {
     html += '</div></div>';
   }
 
-  // Check if batch is fully complete
+  // Batch complete banner
   const batchComplete = batch.customers.every(c => isBatchCustomerComplete(route, c.orders));
   if (batchComplete) {
     html += '<div class="fetch-batch-done">Batch complete!</div>';
   }
 
-  // Pick sequence cards
+  // ── Pick sequence cards ──
   for (const pick of batch.pickSequence) {
     const allChecked = pick.picks.every(p =>
       p.orderItemIds.every(id => isItemResolved(route, id))
@@ -1002,7 +1068,6 @@ function renderFetchMode(orders) {
 
     for (const p of sortedPicks) {
       const isChecked = p.orderItemIds.every(id => isItemResolved(route, id));
-      // Store orderItemIds as data attributes for the checkbox handler
       html += `<label class="fetch-pick-row${isChecked ? ' row-checked' : ''}" data-order-ids="${p.orderItemIds.join(',')}">`;
       html += `<input type="checkbox" ${isChecked ? 'checked' : ''}>`;
       html += `<span class="fetch-crate-ref">Crate ${p.crateLabel} (${p.customer})</span>`;
@@ -1012,17 +1077,6 @@ function renderFetchMode(orders) {
 
     html += '</div>';
   }
-
-  // Crate overview per customer
-  html += '<div style="margin-top:16px">';
-  for (const cust of batch.customers) {
-    const done = isBatchCustomerComplete(route, cust.orders);
-    html += `<div class="customer-group${done ? ' cg-done' : ''}" style="margin-bottom:8px">`;
-    html += `<div class="customer-header"><span class="customer-name">${cust.customer}</span>`;
-    html += crateVizHTML(buildCrateData(cust.orders, wareColors));
-    html += '</div></div>';
-  }
-  html += '</div>';
 
   html += '<button class="reset-btn">↺ Reset checklist</button>';
   contentEl.innerHTML = html;
