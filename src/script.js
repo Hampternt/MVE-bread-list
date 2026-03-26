@@ -47,8 +47,9 @@ const COLS = {
 
 // ─── CRATE VISUALISATION ──────────────────────────────────────
 const CRATE_COLORS = [
-  '#e8c840','#5abf6a','#4a9ede','#e87840',
-  '#c45abf','#5abfbf','#e84040','#b0bf5a','#bf8a5a','#5a6abf'
+  '#e84040','#e87840','#e8c840','#6abf40','#40bfa0',
+  '#40a0e8','#4060e8','#8040e8','#c840c8','#e84088',
+  '#bf8040','#408060','#607080','#a06080','#80a040','#40c8c8'
 ];
 
 // ─── STATE ────────────────────────────────────────────────────
@@ -762,10 +763,10 @@ function rebuildFetchBatches(orders) {
 
   function flushBatch() {
     if (batch && batch.customers.length > 0) {
-      batch.pickRounds = buildPickRounds(batch, wareColors);
+      batch.pickSequence = buildPickSequence(batch, wareColors);
       fetchBatches.push(batch);
     }
-    batch = { customers: [], pickRounds: [] };
+    batch = { customers: [], pickSequence: [] };
     floorUsed = 0;
     trolleyUsed = 0;
   }
@@ -804,12 +805,43 @@ function rebuildFetchBatches(orders) {
   if (fetchCurrentBatchIndex >= fetchBatches.length) fetchCurrentBatchIndex = 0;
 }
 
-// Build pick rounds for a batch: one round per crate layer (bottom-up).
-// Round 0 = each customer's first (bottom) crate. Round 1 = second crate layer, etc.
-// Within each round, bread types are grouped across active crates so shared types
-// (one trip to the shelf) can serve multiple crates. Only 1 in-progress crate per customer.
-function buildPickRounds(batch, wareColors) {
-  // Assign global crate numbers per customer
+// Reorder each customer's crates so shared bread types align at the same layer.
+// The first customer's crate order defines a "ware priority" — bread types in their
+// bottom crate have the lowest priority number. Other customers' crates are sorted
+// so crates containing low-priority (early) wares come first (bottom of stack).
+function alignCratesAcrossCustomers(batch) {
+  if (batch.customers.length < 2) return;
+  const ref = batch.customers[0];
+  if (!ref.structured || !ref.structured.crates.length) return;
+
+  // Build ware → crate-layer-index map from the first customer
+  const warePriority = {};
+  ref.structured.crates.forEach((crate, layerIdx) => {
+    for (const item of crate.items) {
+      if (!(item.ware in warePriority)) warePriority[item.ware] = layerIdx;
+    }
+  });
+
+  // Reorder other customers' crates by minimum ware priority
+  for (let ci = 1; ci < batch.customers.length; ci++) {
+    const cust = batch.customers[ci];
+    if (!cust.structured || cust.structured.crates.length <= 1) continue;
+
+    cust.structured.crates.sort((a, b) => {
+      const aMin = Math.min(...a.items.map(it => warePriority[it.ware] ?? 999));
+      const bMin = Math.min(...b.items.map(it => warePriority[it.ware] ?? 999));
+      return aMin - bMin;
+    });
+  }
+}
+
+// Build the pick sequence for a batch: one entry per bread type, shared types first.
+// Crates are pre-aligned across customers so shared bread types sit at the same layer.
+function buildPickSequence(batch, wareColors) {
+  // Align crate stacking order so shared types are at the same layer
+  alignCratesAcrossCustomers(batch);
+
+  // Assign crate labels per customer
   let globalCrate = 1;
   const crateAssignments = []; // parallel to batch.customers
 
@@ -817,90 +849,62 @@ function buildPickRounds(batch, wareColors) {
     const custCrates = [];
     if (cust.structured) {
       for (const crate of cust.structured.crates) {
-        custCrates.push({
-          crateLabel: `#${globalCrate}`,
-          globalNum: globalCrate,
-          crateSize: crate.size,
-          crate,
-          customer: cust.customer,
-          orders: cust.orders,
-        });
+        custCrates.push({ crateLabel: `#${globalCrate}`, globalNum: globalCrate, crate });
         globalCrate++;
       }
     }
     crateAssignments.push(custCrates);
   }
 
-  // Determine max crate count across all customers
-  const maxCrates = Math.max(...crateAssignments.map(ca => ca.length), 0);
-  const rounds = [];
+  // Group by ware across all customers in the batch
+  const wareMap = {}; // ware → { supplier, color, picks: [...] }
 
-  for (let roundIdx = 0; roundIdx < maxCrates; roundIdx++) {
-    // Collect active crates: each customer's crate at this round index
-    const activeCrates = [];
-    crateAssignments.forEach((custCrates, ci) => {
-      if (roundIdx < custCrates.length) {
-        activeCrates.push(custCrates[roundIdx]);
-      }
-    });
-
-    // Group bread types across all active crates in this round
-    const wareMap = {}; // ware → { supplier, color, totalQty, crates: [...] }
-
-    for (const ac of activeCrates) {
-      for (const item of ac.crate.items) {
+  batch.customers.forEach((cust, ci) => {
+    const custCrates = crateAssignments[ci];
+    custCrates.forEach(({ crateLabel, globalNum, crate }) => {
+      crate.items.forEach(item => {
         if (!wareMap[item.ware]) {
-          const sampleOrder = ac.orders.find(o => o.ware === item.ware) || {};
+          const sampleOrder = cust.orders.find(o => o.ware === item.ware) || {};
           wareMap[item.ware] = {
             supplier: sampleOrder.supplier || '',
             color: item.color,
-            totalQty: 0,
-            crates: [],
+            picks: [],
           };
         }
-        // orderItemIds: all orders for this ware+customer (assigned to every crate containing this ware)
-        const orderItemIds = ac.orders
+        const orderItemIds = cust.orders
           .filter(o => o.ware === item.ware)
           .map(o => o.itemId);
 
-        wareMap[item.ware].totalQty += item.qty;
-        wareMap[item.ware].crates.push({
-          customer: ac.customer,
-          crateLabel: ac.crateLabel,
-          globalNum: ac.globalNum,
+        wareMap[item.ware].picks.push({
+          customer: cust.customer,
+          crateLabel,
+          globalNum,
           qty: item.qty,
           orderItemIds,
         });
-      }
-    }
-
-    // Build wareGroups array and sort: shared types first, then by first crate number
-    const wareGroups = Object.entries(wareMap).map(([ware, data]) => {
-      const uniqueCustomers = new Set(data.crates.map(c => c.customer)).size;
-      const isShared = uniqueCustomers > 1;
-      const firstCrateNum = Math.min(...data.crates.map(c => c.globalNum));
-      const firstCustomerIdx = batch.customers.findIndex(
-        bc => bc.customer === data.crates[0].customer
-      );
-      return { ware, ...data, uniqueCustomers, isShared, firstCrateNum, firstCustomerIdx };
+      });
     });
+  });
 
-    // Sort: customer order first (top-to-bottom matching crate overview),
-    // then crate number, shared types slightly before single at same position
-    wareGroups.sort((a, b) => {
-      if (a.firstCustomerIdx !== b.firstCustomerIdx) return a.firstCustomerIdx - b.firstCustomerIdx;
-      if (a.firstCrateNum !== b.firstCrateNum) return a.firstCrateNum - b.firstCrateNum;
-      return b.uniqueCustomers - a.uniqueCustomers;
-    });
+  const sequence = Object.entries(wareMap).map(([ware, data]) => {
+    const uniqueCustomers = new Set(data.picks.map(p => p.customer)).size;
+    const totalQty = data.picks.reduce((s, p) => s + p.qty, 0);
+    const firstPick = data.picks[0];
+    const firstCustomerIdx = batch.customers.findIndex(c => c.customer === firstPick.customer);
+    const firstCrateNum = firstPick.globalNum;
+    return { ware, ...data, uniqueCustomers, totalQty, firstCustomerIdx, firstCrateNum };
+  });
 
-    rounds.push({
-      roundIndex: roundIdx,
-      activeCrates,
-      wareGroups,
-    });
-  }
+  // Primary: customer order (top-to-bottom)
+  // Secondary: crate number within that customer
+  // Tertiary: shared types before single-customer types at same position
+  sequence.sort((a, b) => {
+    if (a.firstCustomerIdx !== b.firstCustomerIdx) return a.firstCustomerIdx - b.firstCustomerIdx;
+    if (a.firstCrateNum !== b.firstCrateNum) return a.firstCrateNum - b.firstCrateNum;
+    return b.uniqueCustomers - a.uniqueCustomers;
+  });
 
-  return rounds;
+  return sequence;
 }
 
 // Initialise stacking state for a batch
@@ -1165,61 +1169,38 @@ function renderFetchMode(orders) {
     html += '<div class="fetch-batch-done">Batch complete!</div>';
   }
 
-  // ── Pick rounds: one section per crate layer ──
-  const rounds = batch.pickRounds || [];
-  const showRoundHeaders = rounds.length > 1;
-
-  for (const round of rounds) {
-    // Check if entire round is complete
-    const roundComplete = round.wareGroups.every(wg =>
-      wg.crates.every(c => c.orderItemIds.every(id => isItemResolved(route, id)))
+  // ── Pick sequence cards (grouped by bread type, crates aligned across customers) ──
+  for (const pick of batch.pickSequence) {
+    const allChecked = pick.picks.every(p =>
+      p.orderItemIds.every(id => isItemResolved(route, id))
     );
 
-    if (showRoundHeaders) {
-      const roundLabel = round.roundIndex === 0 ? 'Bottom crates'
-        : round.roundIndex === 1 ? 'Second layer'
-        : `Layer ${round.roundIndex + 1}`;
-      html += `<div class="fetch-round-header${roundComplete ? ' round-done' : ''}">`;
-      html += `<span class="round-label">Round ${round.roundIndex + 1} — ${roundLabel}</span>`;
-      if (roundComplete) html += '<span class="round-check">✓</span>';
-      html += '</div>';
+    html += `<div class="fetch-pick-card${allChecked ? ' pick-done' : ''}">`;
+    html += '<div class="fetch-pick-header">';
+    html += `<div class="fetch-color-swatch" style="background:${pick.color}"></div>`;
+    html += `<span class="fetch-ware-name">${pick.ware}</span>`;
+    if (pick.uniqueCustomers > 1) {
+      html += `<span class="fetch-shared-badge">x${pick.uniqueCustomers}</span>`;
+    }
+    html += `<span class="fetch-ware-total">${pick.totalQty} stk</span>`;
+    html += supplierIconHTML(pick.supplier);
+    html += '</div>';
+
+    // Sub-rows: pending first, checked last
+    const pending = pick.picks.filter(p => !p.orderItemIds.every(id => isItemResolved(route, id)));
+    const done = pick.picks.filter(p => p.orderItemIds.every(id => isItemResolved(route, id)));
+    const sortedPicks = [...pending, ...done];
+
+    for (const p of sortedPicks) {
+      const isChecked = p.orderItemIds.every(id => isItemResolved(route, id));
+      html += `<label class="fetch-pick-row${isChecked ? ' row-checked' : ''}" data-order-ids="${p.orderItemIds.join(',')}">`;
+      html += `<input type="checkbox" ${isChecked ? 'checked' : ''}>`;
+      html += `<span class="fetch-crate-ref">Crate ${p.crateLabel} (${p.customer})</span>`;
+      html += `<span class="fetch-pick-qty">${p.qty} stk</span>`;
+      html += '</label>';
     }
 
-    // If round is complete and there are multiple rounds, collapse to just the header
-    if (roundComplete && showRoundHeaders) continue;
-
-    for (const wg of round.wareGroups) {
-      const allChecked = wg.crates.every(c =>
-        c.orderItemIds.every(id => isItemResolved(route, id))
-      );
-
-      html += `<div class="fetch-pick-card${allChecked ? ' pick-done' : ''}">`;
-      html += '<div class="fetch-pick-header">';
-      html += `<div class="fetch-color-swatch" style="background:${wg.color}"></div>`;
-      html += `<span class="fetch-ware-name">${wg.ware}</span>`;
-      if (wg.uniqueCustomers > 1) {
-        html += `<span class="fetch-shared-badge">x${wg.uniqueCustomers}</span>`;
-      }
-      html += `<span class="fetch-ware-total">${wg.totalQty} stk</span>`;
-      html += supplierIconHTML(wg.supplier);
-      html += '</div>';
-
-      // Sub-rows: pending first, checked last
-      const pending = wg.crates.filter(c => !c.orderItemIds.every(id => isItemResolved(route, id)));
-      const done = wg.crates.filter(c => c.orderItemIds.every(id => isItemResolved(route, id)));
-      const sortedCrates = [...pending, ...done];
-
-      for (const c of sortedCrates) {
-        const isChecked = c.orderItemIds.every(id => isItemResolved(route, id));
-        html += `<label class="fetch-pick-row${isChecked ? ' row-checked' : ''}" data-order-ids="${c.orderItemIds.join(',')}">`;
-        html += `<input type="checkbox" ${isChecked ? 'checked' : ''}>`;
-        html += `<span class="fetch-crate-ref">Crate ${c.crateLabel} (${c.customer})</span>`;
-        html += `<span class="fetch-pick-qty">${c.qty} stk</span>`;
-        html += '</label>';
-      }
-
-      html += '</div>';
-    }
+    html += '</div>';
   }
 
   html += '<button class="reset-btn">↺ Reset checklist</button>';
