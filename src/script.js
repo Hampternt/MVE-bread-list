@@ -514,46 +514,112 @@ function getWareColors(orders) {
 
 const CRATE_COMPACT_THRESHOLD = 50;
 
-function buildCrateData(custOrders, wareColors) {
+// Returns structured crate assignments with rich item data.
+// Each crate: { size: 10|5, items: [{ ware, qty, color }] }
+// Algorithm: minimise crate count first, then maximise pure (single-type) crates.
+function buildCrateDataStructured(custOrders, wareColors) {
   const qtyByWare = {};
   custOrders.forEach(o => { qtyByWare[o.ware] = (qtyByWare[o.ware] || 0) + o.qty; });
-  const sorted = Object.entries(qtyByWare).sort((a, b) => b[1] - a[1]);
-  const total = sorted.reduce((s, [, q]) => s + q, 0);
+  const total = Object.values(qtyByWare).reduce((s, q) => s + q, 0);
   if (!total) return null;
 
-  // Flat color slots
-  const slots = [];
-  sorted.forEach(([ware, qty]) => {
-    const color = wareColors[ware] || '#888';
-    for (let i = 0; i < qty; i++) slots.push(color);
-  });
+  // Step 1: Determine minimum crate count and sizes
+  const crates = [];
+  let bigCount = Math.floor(total / 10);
+  const rem = total % 10;
+  let smallCount = 0;
+  if (rem > 5)      bigCount++;
+  else if (rem > 0) smallCount = 1;
+  for (let i = 0; i < bigCount; i++)   crates.push({ size: 10, items: [] });
+  for (let i = 0; i < smallCount; i++) crates.push({ size:  5, items: [] });
 
-  function makeOneCrate(size, startIdx) {
-    const cs = [];
-    for (let s = 0; s < size; s++) cs.push(startIdx + s < slots.length ? slots[startIdx + s] : null);
-    return { size, slots: cs };
+  // Track remaining qty per ware and used capacity per crate
+  const wares = Object.entries(qtyByWare).sort((a, b) => b[1] - a[1]);
+  const remaining = {};
+  wares.forEach(([ware, qty]) => { remaining[ware] = qty; });
+  const used = crates.map(() => 0);
+
+  // Step 2a: Fill whole crates purely (ware qty >= crate size)
+  for (const [ware] of wares) {
+    if (remaining[ware] <= 0) continue;
+    for (let ci = 0; ci < crates.length; ci++) {
+      if (used[ci] > 0) continue;
+      if (remaining[ware] >= crates[ci].size) {
+        const color = wareColors[ware] || '#888';
+        crates[ci].items.push({ ware, qty: crates[ci].size, color });
+        used[ci] = crates[ci].size;
+        remaining[ware] -= crates[ci].size;
+        if (remaining[ware] <= 0) break;
+      }
+    }
+  }
+
+  // Step 2b: Check if any remaining ware qty exactly matches a crate's remaining capacity
+  for (const [ware] of wares) {
+    if (remaining[ware] <= 0) continue;
+    for (let ci = 0; ci < crates.length; ci++) {
+      const space = crates[ci].size - used[ci];
+      if (space > 0 && remaining[ware] === space) {
+        crates[ci].items.push({ ware, qty: space, color: wareColors[ware] || '#888' });
+        used[ci] += space;
+        remaining[ware] = 0;
+        break;
+      }
+    }
+  }
+
+  // Step 2c: Pack remaining wares — prefer crates that can hold the full amount (tightest fit),
+  // otherwise use the largest available space to avoid splitting across many crates.
+  const leftover = wares.filter(([w]) => remaining[w] > 0).sort((a, b) => remaining[b[0]] - remaining[a[0]]);
+  for (const [ware] of leftover) {
+    while (remaining[ware] > 0) {
+      let bestCi = -1, bestWaste = Infinity, fallbackCi = -1, fallbackSpace = 0;
+      for (let ci = 0; ci < crates.length; ci++) {
+        const space = crates[ci].size - used[ci];
+        if (space <= 0) continue;
+        if (space >= remaining[ware]) {
+          const waste = space - remaining[ware];
+          if (waste < bestWaste) { bestCi = ci; bestWaste = waste; }
+        } else if (space > fallbackSpace) {
+          fallbackCi = ci; fallbackSpace = space;
+        }
+      }
+      const ci = bestCi !== -1 ? bestCi : fallbackCi;
+      if (ci === -1) break;
+      const space = crates[ci].size - used[ci];
+      const toPlace = Math.min(remaining[ware], space);
+      crates[ci].items.push({ ware, qty: toPlace, color: wareColors[ware] || '#888' });
+      used[ci] += toPlace;
+      remaining[ware] -= toPlace;
+    }
+  }
+
+  return { crates, total };
+}
+
+// Wrapper: converts structured crate data to the slot-based format used by renderOneCrate().
+function buildCrateData(custOrders, wareColors) {
+  const structured = buildCrateDataStructured(custOrders, wareColors);
+  if (!structured) return null;
+  const { crates, total } = structured;
+
+  // Convert a structured crate to the flat { size, slots } format
+  function toSlotCrate(crate) {
+    const slots = [];
+    crate.items.forEach(({ color, qty }) => { for (let i = 0; i < qty; i++) slots.push(color); });
+    while (slots.length < crate.size) slots.push(null);
+    return { size: crate.size, slots };
   }
 
   if (total > CRATE_COMPACT_THRESHOLD) {
-    // Compact: show full-crate badge × count + one partial crate for the remainder
     const fullBig = Math.floor(total / 10);
     const rem = total % 10;
-    const partialCrate = rem > 0 ? makeOneCrate(rem > 5 ? 10 : 5, fullBig * 10) : null;
-    return { compact: true, total, fullBig, partialCrate };
+    // For the compact badge we just need the count of full large crates and a partial crate
+    const lastCrate = rem > 0 ? toSlotCrate(crates[crates.length - 1]) : null;
+    return { compact: true, total, fullBig, partialCrate: lastCrate };
   }
 
-  // Full grid: individual crate slots
-  let bigCount = Math.floor(total / 10);
-  const remainder = total % 10;
-  let smallCount = 0;
-  if (remainder > 5)       bigCount++;
-  else if (remainder > 0)  smallCount = 1;
-
-  const crates = [];
-  let idx = 0;
-  for (let c = 0; c < bigCount; c++) { crates.push(makeOneCrate(10, idx)); idx += 10; }
-  if (smallCount)                      { crates.push(makeOneCrate(5,  idx)); }
-  return { compact: false, total, crates };
+  return { compact: false, total, crates: crates.map(toSlotCrate) };
 }
 
 function renderOneCrate(crate) {
