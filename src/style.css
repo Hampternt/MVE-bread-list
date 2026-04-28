@@ -951,6 +951,11 @@ body.theme-freezer {
   color: #fff;
 }
 
+.landing-btn-buddy {
+  background: #d97a3c;
+  color: #fff;
+}
+
 .landing-admin {
   margin-top: 2rem;
   color: var(--muted);
