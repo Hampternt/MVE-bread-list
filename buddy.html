@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Buddy System — Kiosk</title>
+  <link rel="icon" type="image/svg+xml" href="assets/bread-basket.svg">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="src/style.css">
+  <style>
+    /* ── BUDDY KIOSK ────────────────────────────────────────────
+       Big-tap, single-tablet, self-serve flow. Three screens:
+       idle → pick name → assignment. State lives in localStorage. */
+    body.theme-buddy {
+      --accent:     #d97a3c;
+      --accent-dim: #a85a28;
+      --done-bg:    #2a1d12;
+      --check:      #5abf6a;
+    }
+
+    .buddy-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 80px);
+      padding: 2rem 1.25rem;
+      gap: 1.5rem;
+      text-align: center;
+    }
+    .buddy-screen.visible { display: flex; }
+
+    .buddy-headline {
+      font-size: 2.4rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      line-height: 1.05;
+      max-width: 18ch;
+    }
+    .buddy-sub {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.95rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      max-width: 32ch;
+      line-height: 1.5;
+    }
+
+    .buddy-big-btn {
+      width: 100%;
+      max-width: 440px;
+      min-height: 130px;
+      padding: 1.5rem;
+      background: var(--accent);
+      color: #1a1a18;
+      border: none;
+      border-radius: 14px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.7rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      box-shadow: 0 4px 0 var(--accent-dim);
+    }
+    .buddy-big-btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 0 var(--accent-dim);
+    }
+
+    .buddy-secondary-btn {
+      background: transparent;
+      color: var(--muted);
+      border: 2px solid var(--border);
+      padding: 0.9rem 1.4rem;
+      border-radius: 8px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      min-height: 52px;
+    }
+    .buddy-secondary-btn:active { color: var(--accent); border-color: var(--accent); }
+
+    /* Queue badge on idle screen — shows how many are packing alone */
+    .buddy-queue-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+    }
+    .buddy-queue-pill strong { color: var(--accent); font-size: 1rem; }
+    .buddy-queue-pill .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--accent);
+    }
+
+    /* Roster grid — name buttons sized for thumb taps */
+    .buddy-roster {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 720px;
+    }
+    .buddy-name-btn {
+      background: var(--surface);
+      border: 2px solid var(--border);
+      color: var(--text);
+      padding: 1.15rem 1rem;
+      border-radius: 10px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      cursor: pointer;
+      min-height: 72px;
+      transition: background 0.1s;
+    }
+    .buddy-name-btn:active { background: var(--accent); color: #1a1a18; border-color: var(--accent); }
+    .buddy-name-btn.in-queue {
+      background: rgba(217, 122, 60, 0.08);
+      border-color: var(--accent-dim);
+      color: var(--accent);
+    }
+    .buddy-name-btn.in-queue::after {
+      content: '· packing';
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--muted);
+      display: block;
+      margin-top: 4px;
+      letter-spacing: 0.06em;
+    }
+
+    .buddy-empty-roster {
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.9rem;
+      padding: 2rem 1rem;
+      text-align: center;
+      max-width: 36ch;
+      line-height: 1.5;
+    }
+
+    /* Assignment screen — full-bleed result */
+    .buddy-result-card {
+      width: 100%;
+      max-width: 480px;
+      background: var(--surface);
+      border: 2px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+    .buddy-result-card.help { border-color: var(--accent); }
+    .buddy-result-card.solo { border-color: var(--accent-dim); }
+
+    .buddy-result-eyebrow {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--muted);
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    .buddy-result-icon { font-size: 4rem; line-height: 1; }
+    .buddy-result-title {
+      font-size: 2rem;
+      font-weight: 900;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      line-height: 1.05;
+    }
+    .buddy-result-name {
+      font-size: 2.4rem;
+      font-weight: 900;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      line-height: 1.05;
+    }
+    .buddy-result-detail {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.95rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      line-height: 1.5;
+    }
+
+    /* Manage drawer — hidden roster editor for the coordinator */
+    .buddy-manage-link {
+      position: fixed;
+      bottom: 12px;
+      right: 14px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: #555545;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      padding: 6px 10px;
+      text-transform: uppercase;
+    }
+    .buddy-manage-link:active { color: var(--accent); }
+
+    .buddy-manage-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 50;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .buddy-manage-overlay.open { display: flex; }
+    .buddy-manage-sheet {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 100%;
+      max-width: 480px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .buddy-manage-sheet h2 {
+      font-size: 1.2rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .buddy-manage-sheet textarea {
+      width: 100%;
+      min-height: 240px;
+      background: var(--bg);
+      color: var(--text);
+      border: 2px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      font-family: 'DM Mono', monospace;
+      font-size: 1rem;
+      line-height: 1.5;
+      resize: vertical;
+    }
+    .buddy-manage-sheet textarea:focus { outline: none; border-color: var(--accent); }
+    .buddy-manage-hint {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+    }
+    .buddy-manage-actions { display: flex; gap: 10px; }
+    .buddy-manage-actions button { flex: 1; }
+    .buddy-manage-save {
+      background: var(--accent);
+      color: #1a1a18;
+      border: none;
+      padding: 14px;
+      border-radius: 6px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .buddy-clear-queue-btn {
+      background: transparent;
+      color: #e07070;
+      border: 1px solid #6a2a2a;
+      padding: 10px;
+      border-radius: 6px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.8rem;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 480px) {
+      .buddy-headline { font-size: 1.9rem; }
+      .buddy-result-title { font-size: 1.6rem; }
+      .buddy-result-name { font-size: 2rem; }
+      .buddy-roster { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+    }
+  </style>
+</head>
+
+<body class="theme-buddy">
+
+  <header>
+    <div class="logo-icon">🤝</div>
+    <div class="header-text">
+      <h1>Buddy System</h1>
+      <p>Car-Packing Kiosk</p>
+    </div>
+    <div class="header-actions">
+      <a href="index.html" class="info-btn">← Lists</a>
+    </div>
+  </header>
+
+  <!-- IDLE SCREEN -->
+  <main class="buddy-screen visible" id="screenIdle">
+    <p class="buddy-sub">Tap the button when you arrive to start packing your car.</p>
+    <button class="buddy-big-btn" id="btnArrive">I'm packing now</button>
+    <div class="buddy-queue-pill" id="queuePill" style="display:none">
+      <span class="dot"></span>
+      <span><strong id="queueCount">0</strong> already packing alone — tap in to help</span>
+    </div>
+    <button class="buddy-secondary-btn" id="btnDone">I'm done loading</button>
+  </main>
+
+  <!-- PICK NAME SCREEN -->
+  <main class="buddy-screen" id="screenPick">
+    <p class="buddy-headline" id="pickHeadline">Who are you?</p>
+    <p class="buddy-sub" id="pickSub">Tap your name to get your assignment.</p>
+    <div class="buddy-roster" id="rosterGrid"></div>
+    <div class="buddy-empty-roster" id="rosterEmpty" style="display:none">
+      No names on the roster yet. Tap "manage roster" at the bottom-right to add people.
+    </div>
+    <button class="buddy-secondary-btn" id="btnPickCancel">Cancel</button>
+  </main>
+
+  <!-- ASSIGNMENT / RESULT SCREEN -->
+  <main class="buddy-screen" id="screenResult">
+    <div class="buddy-result-card" id="resultCard">
+      <span class="buddy-result-eyebrow" id="resultEyebrow">Your assignment</span>
+      <span class="buddy-result-icon" id="resultIcon">🤝</span>
+      <span class="buddy-result-title" id="resultTitle">Help</span>
+      <span class="buddy-result-name" id="resultName">—</span>
+      <p class="buddy-result-detail" id="resultDetail"></p>
+    </div>
+    <button class="buddy-big-btn" id="btnGotIt">Got it</button>
+  </main>
+
+  <!-- MANAGE ROSTER (hidden coordinator drawer) -->
+  <span class="buddy-manage-link" id="manageLink">manage roster</span>
+  <div class="buddy-manage-overlay" id="manageOverlay">
+    <div class="buddy-manage-sheet">
+      <h2>Roster</h2>
+      <p class="buddy-manage-hint">One name per line. These are the names that show up on the pick screen.</p>
+      <textarea id="rosterTextarea" placeholder="Sister Smith&#10;Sister Jones&#10;Brother Anderson"></textarea>
+      <div class="buddy-manage-actions">
+        <button class="buddy-secondary-btn" id="btnManageCancel">Cancel</button>
+        <button class="buddy-manage-save" id="btnManageSave">Save</button>
+      </div>
+      <button class="buddy-clear-queue-btn" id="btnClearQueue">Clear queue (everyone has left)</button>
+    </div>
+  </div>
+
+  <script>
+    // ─── STORAGE ─────────────────────────────────────────────────
+    // roster: array of names. queue: people who tapped in with no buddy
+    // available — they're packing alone and waiting for the next arrival
+    // to come help them.
+    const ROSTER_KEY = 'buddy:roster';
+    const QUEUE_KEY  = 'buddy:queue';
+
+    function loadRoster() {
+      try { return JSON.parse(localStorage.getItem(ROSTER_KEY)) || []; }
+      catch { return []; }
+    }
+    function saveRoster(list) {
+      localStorage.setItem(ROSTER_KEY, JSON.stringify(list));
+    }
+    function loadQueue() {
+      try { return JSON.parse(localStorage.getItem(QUEUE_KEY)) || []; }
+      catch { return []; }
+    }
+    function saveQueue(q) {
+      localStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+    }
+
+    // ─── SCREEN ROUTING ───────────────────────────────────────────
+    const screens = ['Idle', 'Pick', 'Result'];
+    function show(name) {
+      screens.forEach(s => {
+        document.getElementById('screen' + s).classList.toggle('visible', s === name);
+      });
+    }
+
+    // ─── IDLE SCREEN ──────────────────────────────────────────────
+    function refreshIdle() {
+      const q = loadQueue();
+      const pill = document.getElementById('queuePill');
+      if (q.length === 0) {
+        pill.style.display = 'none';
+      } else {
+        pill.style.display = 'inline-flex';
+        document.getElementById('queueCount').textContent = q.length;
+      }
+    }
+
+    document.getElementById('btnArrive').addEventListener('click', () => {
+      enterPickScreen('arrive');
+    });
+
+    document.getElementById('btnDone').addEventListener('click', () => {
+      enterPickScreen('done');
+    });
+
+    // ─── PICK NAME SCREEN ─────────────────────────────────────────
+    // Two modes: 'arrive' (tap your name to clock in and get assigned)
+    // or 'done' (tap your name to remove yourself from the packing queue).
+    let pickMode = 'arrive';
+
+    function enterPickScreen(mode) {
+      pickMode = mode;
+      const headline = document.getElementById('pickHeadline');
+      const sub      = document.getElementById('pickSub');
+      if (mode === 'done') {
+        headline.textContent = 'Who finished?';
+        sub.textContent = 'Tap your name to clear yourself from the queue.';
+      } else {
+        headline.textContent = 'Who are you?';
+        sub.textContent = 'Tap your name to get your assignment.';
+      }
+      renderRoster();
+      show('Pick');
+    }
+
+    function renderRoster() {
+      const grid    = document.getElementById('rosterGrid');
+      const empty   = document.getElementById('rosterEmpty');
+      const roster  = loadRoster();
+      const queue   = loadQueue();
+      const queueNames = new Set(queue.map(p => p.name));
+
+      grid.innerHTML = '';
+      if (roster.length === 0) {
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+
+      // In "done" mode, only show people who are actually in the queue —
+      // anyone else has nothing to clear.
+      const visible = pickMode === 'done'
+        ? roster.filter(n => queueNames.has(n))
+        : roster;
+
+      if (pickMode === 'done' && visible.length === 0) {
+        empty.style.display = 'block';
+        empty.textContent = 'Nobody is packing alone right now.';
+        return;
+      }
+
+      visible.forEach(name => {
+        const btn = document.createElement('button');
+        btn.className = 'buddy-name-btn';
+        btn.textContent = name;
+        if (queueNames.has(name)) btn.classList.add('in-queue');
+        btn.addEventListener('click', () => handleNameTap(name));
+        grid.appendChild(btn);
+      });
+    }
+
+    document.getElementById('btnPickCancel').addEventListener('click', () => {
+      refreshIdle();
+      show('Idle');
+    });
+
+    // ─── PAIRING LOGIC ────────────────────────────────────────────
+    // FIFO buddy system: when someone taps in, if anyone is already
+    // packing alone, send the new arrival to help the longest-waiting
+    // person. Otherwise the new arrival packs solo and joins the queue.
+    function handleNameTap(name) {
+      if (pickMode === 'done') {
+        const q = loadQueue().filter(p => p.name !== name);
+        saveQueue(q);
+        showResult({
+          mode: 'done',
+          title: 'Cleared',
+          name,
+          detail: 'You\'re marked as finished. Drive safe!',
+          icon: '✓',
+        });
+        return;
+      }
+
+      const queue = loadQueue();
+      // Don't double-queue someone who already tapped in
+      if (queue.some(p => p.name === name)) {
+        showResult({
+          mode: 'solo',
+          title: 'You\'re already in the queue',
+          name,
+          detail: 'Keep packing — the next person will be sent to help you.',
+          icon: '⏳',
+        });
+        return;
+      }
+
+      if (queue.length === 0) {
+        // First in — pack alone, wait for a helper
+        queue.push({ name, ts: Date.now() });
+        saveQueue(queue);
+        showResult({
+          mode: 'solo',
+          title: 'Pack your own car',
+          name: '',
+          detail: 'Nobody else is packing yet. The next person to arrive will be sent to help you.',
+          icon: '🚗',
+        });
+      } else {
+        // Pair with longest-waiting person
+        const helpee = queue.shift();
+        saveQueue(queue);
+        showResult({
+          mode: 'help',
+          title: 'Go help',
+          name: helpee.name,
+          detail: 'They started ' + minutesAgo(helpee.ts) + '. Find them in the parking lot and help load their car.',
+          icon: '🤝',
+        });
+      }
+    }
+
+    function minutesAgo(ts) {
+      const mins = Math.max(0, Math.round((Date.now() - ts) / 60000));
+      if (mins === 0) return 'just now';
+      if (mins === 1) return '1 minute ago';
+      return mins + ' minutes ago';
+    }
+
+    // ─── RESULT SCREEN ────────────────────────────────────────────
+    function showResult({ mode, title, name, detail, icon }) {
+      const card = document.getElementById('resultCard');
+      card.classList.remove('help', 'solo');
+      if (mode === 'help' || mode === 'solo') card.classList.add(mode);
+
+      document.getElementById('resultEyebrow').textContent =
+        mode === 'done' ? 'Thanks!' : 'Your assignment';
+      document.getElementById('resultIcon').textContent  = icon;
+      document.getElementById('resultTitle').textContent = title;
+      const nameEl = document.getElementById('resultName');
+      nameEl.textContent = name || '';
+      nameEl.style.display = name ? 'block' : 'none';
+      document.getElementById('resultDetail').textContent = detail;
+      show('Result');
+    }
+
+    document.getElementById('btnGotIt').addEventListener('click', () => {
+      refreshIdle();
+      show('Idle');
+    });
+
+    // ─── MANAGE ROSTER DRAWER ─────────────────────────────────────
+    const manageOverlay = document.getElementById('manageOverlay');
+    document.getElementById('manageLink').addEventListener('click', () => {
+      document.getElementById('rosterTextarea').value = loadRoster().join('\n');
+      manageOverlay.classList.add('open');
+    });
+    document.getElementById('btnManageCancel').addEventListener('click', () => {
+      manageOverlay.classList.remove('open');
+    });
+    document.getElementById('btnManageSave').addEventListener('click', () => {
+      const lines = document.getElementById('rosterTextarea').value
+        .split('\n')
+        .map(s => s.trim())
+        .filter(Boolean);
+      // dedupe while preserving order
+      const seen = new Set();
+      const deduped = lines.filter(n => seen.has(n) ? false : (seen.add(n), true));
+      saveRoster(deduped);
+      manageOverlay.classList.remove('open');
+      refreshIdle();
+    });
+    document.getElementById('btnClearQueue').addEventListener('click', () => {
+      if (confirm('Clear everyone from the packing queue? Use this if people left without tapping "I\'m done".')) {
+        saveQueue([]);
+        manageOverlay.classList.remove('open');
+        refreshIdle();
+      }
+    });
+
+    // ─── INIT ─────────────────────────────────────────────────────
+    refreshIdle();
+  </script>
+</body>
+</html>
